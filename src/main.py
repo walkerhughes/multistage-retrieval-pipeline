@@ -25,8 +25,8 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title="Retrieval Evals API",
-    description="YouTube transcript retrieval system with Postgres FTS",
-    version="0.1.0 (M1)",
+    description="YouTube transcript retrieval system with Postgres FTS + Semantic re-ranking",
+    version="0.1.0",
     lifespan=lifespan,
 )
 
