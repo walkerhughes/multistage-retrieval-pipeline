@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException, Query
 
 from src.api.schemas import BenchmarkResponse, ChunkResult, QueryRequest, QueryResponse
@@ -27,33 +29,29 @@ async def query_chunks(request: QueryRequest):
     Returns ranked chunks with timing information.
     """
     try:
-        # Select retriever based on mode
-        if request.mode == RetrievalMode.FTS:
-            retriever = FullTextSearchRetriever()
-        elif request.mode == RetrievalMode.VECTOR:
-            retriever = VectorSimilarityRetriever()
-        elif request.mode == RetrievalMode.HYBRID:
-            retriever = HybridRetriever()
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid mode: {request.mode}. Use 'fts', 'vector', or 'hybrid'.",
-            )
-
         # Convert filters to dict if provided
         filters_dict = (
             request.filters.model_dump(exclude_none=True) if request.filters else None
         )
 
-        # Execute retrieval
+        # Execute retrieval based on mode
         if request.mode == RetrievalMode.FTS:
+            retriever = FullTextSearchRetriever()
             result = retriever.retrieve(
                 query=request.q,
                 n=request.n,
                 filters=filters_dict,
                 operator=request.operator,
             )
+        elif request.mode == RetrievalMode.VECTOR:
+            retriever = VectorSimilarityRetriever()
+            result = retriever.retrieve(
+                query=request.q,
+                n=request.n,
+                filters=filters_dict,
+            )
         elif request.mode == RetrievalMode.HYBRID:
+            retriever = HybridRetriever()
             result = retriever.retrieve(
                 query=request.q,
                 n=request.n,
@@ -62,11 +60,9 @@ async def query_chunks(request: QueryRequest):
                 operator=request.operator,
             )
         else:
-            # Vector mode
-            result = retriever.retrieve(
-                query=request.q,
-                n=request.n,
-                filters=filters_dict,
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid mode: {request.mode}. Use 'fts', 'vector', or 'hybrid'.",
             )
 
         # Convert to response schema
@@ -96,7 +92,7 @@ async def query_chunks(request: QueryRequest):
 async def benchmark_retrieval(
     q: str = Query(..., description="Query string"),
     mode: str = Query("fts", description="Retrieval mode: 'fts', 'vector', or 'hybrid'"),
-    operator: str = Query("or", description="FTS operator: 'or' (broad) or 'and' (strict)"),
+    operator: Literal["and", "or"] = Query("or", description="FTS operator: 'or' (broad) or 'and' (strict)"),
     fts_candidates: int = Query(100, description="FTS candidates for hybrid mode", ge=1, le=500),
 ):
     """

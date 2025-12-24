@@ -1,8 +1,8 @@
 from contextlib import contextmanager
-from typing import Generator
+from typing import Any, Generator
 
 import psycopg
-from psycopg.rows import dict_row
+from psycopg.rows import dict_row  # type: ignore[attr-defined]
 from psycopg_pool import ConnectionPool
 
 from src.config import settings
@@ -37,23 +37,24 @@ def get_db_connection() -> Generator[psycopg.Connection, None, None]:
         raise RuntimeError("Database pool not initialized")
 
     with _pool.connection() as conn:
-        conn.row_factory = dict_row
+        conn.row_factory = dict_row  # type: ignore[assignment]
         yield conn
 
 
-def execute_query(query: str, params: dict | None = None) -> list[dict]:
+def execute_query(query: str, params: dict | None = None) -> list[dict[str, Any]]:
     """Execute a query and return results as list of dicts."""
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(query, params or {})
-            return cur.fetchall()
+            cur.execute(query, params or {})  # type: ignore[arg-type]
+            results: list[dict[str, Any]] = cur.fetchall()  # type: ignore[assignment]
+            return results
 
 
-def execute_insert(query: str, params: dict | None = None) -> int:
+def execute_insert(query: str, params: dict | None = None) -> int | None:
     """Execute an INSERT and return the inserted ID."""
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(query, params or {})
-            result = cur.fetchone()
+            cur.execute(query, params or {})  # type: ignore[arg-type]
+            result: dict[str, Any] | None = cur.fetchone()  # type: ignore[assignment]
             conn.commit()
-            return result["id"] if result else None
+            return result.get("id") if result else None

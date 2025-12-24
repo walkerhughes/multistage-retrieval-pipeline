@@ -14,7 +14,7 @@ class IngestionPipeline:
         self.fetcher = YouTubeTranscriptFetcher()
         self.chunker = TokenBasedChunker()
         self.generate_embeddings = generate_embeddings
-        self.embedding_service = None
+        self.embedding_service: EmbeddingService | None = None
 
         if generate_embeddings:
             try:
@@ -184,7 +184,7 @@ class IngestionPipeline:
                 # Batch insert for efficiency
                 for chunk in chunks:
                     cur.execute(
-                        query,
+                        query,  # type: ignore[arg-type]
                         {
                             "doc_id": doc_id,
                             "ord": chunk.ord,
@@ -192,8 +192,9 @@ class IngestionPipeline:
                             "token_count": chunk.token_count,
                         },
                     )
-                    result = cur.fetchone()
-                    chunk_ids.append(result["id"])
+                    result: dict | None = cur.fetchone()  # type: ignore[assignment]
+                    if result:
+                        chunk_ids.append(result.get("id"))  # type: ignore[arg-type]
                 conn.commit()
 
         return chunk_ids
@@ -202,7 +203,7 @@ class IngestionPipeline:
         self, chunk_ids: list[int], chunks: list
     ) -> None:
         """Generate embeddings and insert into chunk_embeddings table."""
-        if not chunk_ids or not chunks:
+        if not chunk_ids or not chunks or not self.embedding_service:
             return
 
         # Extract texts from chunks

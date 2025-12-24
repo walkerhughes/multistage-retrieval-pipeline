@@ -1,6 +1,6 @@
 """Hybrid retrieval combining FTS first-stage with vector reranking."""
 
-from typing import Optional
+from typing import Literal, Optional
 
 from src.database.connection import get_db_connection
 from src.embeddings.service import EmbeddingService
@@ -31,7 +31,7 @@ class HybridRetriever:
         n: int = 50,
         filters: Optional[dict] = None,
         fts_candidates: int = 100,
-        operator: str = "or",
+        operator: Literal["and", "or"] = "or",
     ) -> RetrievalResponse:
         """
         Retrieve and rerank chunks using hybrid approach.
@@ -150,14 +150,14 @@ class HybridRetriever:
             WHERE chunk_id IN ({placeholders})
         """
 
-        params = {"query_embedding": embedding_str}
-        params.update({str(i): chunk_id for i, chunk_id in enumerate(chunk_ids)})
+        params: dict[str, str | int] = {"query_embedding": embedding_str}
+        params.update({str(i): chunk_id for i, chunk_id in enumerate(chunk_ids)})  # type: ignore[arg-type]
 
         # Fetch similarities from database
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(query, params)
-                results = cur.fetchall()
+                cur.execute(query, params)  # type: ignore[arg-type]
+                results: list = cur.fetchall()  # type: ignore[assignment]
 
         # Create similarity lookup
         similarity_map = {row["chunk_id"]: float(row["similarity"]) for row in results}
@@ -185,7 +185,7 @@ class HybridRetriever:
         query: str,
         filters: Optional[dict] = None,
         fts_candidates: int = 100,
-        operator: str = "or",
+        operator: Literal["and", "or"] = "or",
     ) -> str:
         """
         Get detailed explanation of hybrid retrieval process.
