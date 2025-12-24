@@ -244,17 +244,3 @@ CHUNK_OVERLAP_TOKENS=50
 # API
 API_PORT=8000
 ```
-
-## Known Issues
-
-- **YouTube Transcript API**: YouTube may block automated transcript requests (HTTP 400). This is a limitation of YouTube's anti-bot measures, not a bug in the system. Use `seed_test_data.py` for testing.
-
-## M1 Completion Checklist
-
-- ✅ Ingestion pipeline implemented
-- ✅ Full-Text Search (FTS) retrieval functional
-- ✅ `/bench/retrieval` operational with EXPLAIN output
-- ✅ Retrieval p95 < 50ms (achieved ~10ms)
-- ✅ GIN index created and verified
-- ✅ All data properly stored in Postgres
-- ✅ FastAPI endpoints working correctly
