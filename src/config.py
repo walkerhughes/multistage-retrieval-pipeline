@@ -5,11 +5,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     # Database
-    postgres_user: str = "retrieval_user"
-    postgres_password: str = "retrieval_pass"
-    postgres_host: str = "localhost"
-    postgres_port: int = 5433
-    postgres_db: str = "retrieval_db"
+    postgres_user: str
+    postgres_password: str
+    postgres_host: str
+    postgres_port: int
+    postgres_db: str
 
     # Chunking
     chunk_min_tokens: int = 400

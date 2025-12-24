@@ -23,7 +23,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
 COPY src/ ./src/
-COPY .env.example .env
+COPY .env .env
 
 # Expose API port
 EXPOSE 8000
