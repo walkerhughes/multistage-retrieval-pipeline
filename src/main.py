@@ -40,7 +40,7 @@ app.add_middleware(
 )
 
 # Include routes
-app.include_router(router, prefix="/api")
+app.include_router(router, prefix="/api")  # type: ignore[arg-type]
 
 
 # Root endpoint

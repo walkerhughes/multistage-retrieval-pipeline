@@ -8,6 +8,6 @@ from src.api.retrieval import router as retrieval_router
 router = APIRouter()
 
 # Include all sub-routers
-router.include_router(health_router)
-router.include_router(ingest_router)
-router.include_router(retrieval_router)
+router.include_router(health_router)  # type: ignore[arg-type]
+router.include_router(ingest_router)  # type: ignore[arg-type]
+router.include_router(retrieval_router)  # type: ignore[arg-type]

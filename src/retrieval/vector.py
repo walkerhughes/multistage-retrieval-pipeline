@@ -51,25 +51,25 @@ class VectorSimilarityRetriever:
         timer.start()
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(sql_query, params)
-                results = cur.fetchall()
+                cur.execute(sql_query, params)  # type: ignore[arg-type]
+                results: list = cur.fetchall()  # type: ignore[assignment]
         retrieval_ms = timer.stop()
 
         # Step 4: Format results
         chunks = [
             RetrievalResult(
-                chunk_id=row["chunk_id"],
-                doc_id=row["doc_id"],
-                text=row["text"],
-                score=float(row["similarity"]),
+                chunk_id=row.get("chunk_id"),  # type: ignore[arg-type]
+                doc_id=row.get("doc_id"),  # type: ignore[arg-type]
+                text=row.get("text"),  # type: ignore[arg-type]
+                score=float(row.get("similarity", 0)),  # type: ignore[arg-type]
                 metadata={
-                    "url": row["url"],
-                    "title": row["title"],
+                    "url": row.get("url"),  # type: ignore[arg-type]
+                    "title": row.get("title"),  # type: ignore[arg-type]
                     "published_at": (
-                        row["published_at"].isoformat() if row["published_at"] else None
+                        row.get("published_at").isoformat() if row.get("published_at") else None  # type: ignore[arg-type]
                     ),
                 },
-                ord=row["ord"],
+                ord=row.get("ord"),  # type: ignore[arg-type]
             )
             for row in results
         ]
@@ -180,13 +180,13 @@ class VectorSimilarityRetriever:
 
         # Build query
         sql_query, params = self._build_query(query_embedding, n=50, filters=filters)
-        explain_query = f"EXPLAIN (ANALYZE, BUFFERS) {sql_query}"
+        explain_query_sql = f"EXPLAIN (ANALYZE, BUFFERS) {sql_query}"
 
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(explain_query, params)
-                results = cur.fetchall()
+                cur.execute(explain_query_sql, params)  # type: ignore[arg-type]
+                results: list = cur.fetchall()  # type: ignore[assignment]
                 # EXPLAIN returns list of dicts with single key
-                explain_output = "\n".join([list(row.values())[0] for row in results])
+                explain_output = "\n".join([str(list(row.values())[0]) if isinstance(row, dict) else str(row) for row in results])  # type: ignore[index]
 
         return explain_output, embedding_ms
