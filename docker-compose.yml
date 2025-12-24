@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: retrieval-evals-db
+    environment:
+      POSTGRES_USER: retrieval_user
+      POSTGRES_PASSWORD: retrieval_pass
+      POSTGRES_DB: retrieval_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U retrieval_user -d retrieval_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - retrieval-network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: retrieval-evals-api
+    environment:
+      POSTGRES_USER: retrieval_user
+      POSTGRES_PASSWORD: retrieval_pass
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: retrieval_db
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - retrieval-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  retrieval-network:
+    driver: bridge
