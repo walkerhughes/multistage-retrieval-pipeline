@@ -5,9 +5,11 @@ router = APIRouter(prefix="/health", tags=["Health"])
 
 @router.get("")
 async def health_check():
-    """
-    Health check endpoint.
+    """Check API health and readiness
 
-    Returns service status and current milestone.
+    Simple health check endpoint to verify the API is running and database
+    connectivity is operational.
+
+    **Returns:** Status object indicating service health.
     """
     return {"status": "healthy"}

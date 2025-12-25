@@ -8,15 +8,25 @@ router = APIRouter(prefix="/ingest", tags=["Ingestion"])
 
 @router.post("", response_model=IngestResponse)
 async def ingest_youtube(request: IngestRequest):
-    """
-    Ingest a YouTube video transcript.
+    """Ingest a YouTube video transcript into the database
 
-    Steps:
-    1. Fetch transcript from YouTube
-    2. Chunk into token-based segments
-    3. Store in Postgres (docs + chunks tables)
+    This endpoint fetches the transcript from a YouTube video URL, breaks it
+    into manageable text chunks, and stores them in the database for later
+    retrieval.
 
-    Returns ingestion metadata and timing.
+    **What happens:**
+    1. Validates the YouTube URL
+    2. Fetches the video transcript (auto-generated or manual captions)
+    3. Chunks transcript into segments (400-800 tokens, using GPT-4 tokenizer)
+    4. Stores in Postgres for fast full-text and semantic search
+
+    **Required:** YouTube URL must be a valid, publicly accessible video.
+
+    **Note:** YouTube may block transcript requests. Use POST /ingest/text
+    as a fallback to ingest raw text directly.
+
+    **Returns:** Document metadata including ID, chunk count, token count,
+    and processing time in milliseconds.
     """
     try:
         pipeline = IngestionPipeline()
@@ -34,16 +44,26 @@ async def ingest_youtube(request: IngestRequest):
 
 @router.post("/text", response_model=IngestResponse)
 async def ingest_text(request: TextIngestRequest):
-    """
-    Ingest raw text directly.
+    """Ingest raw text directly into the database
 
-    Steps:
-    1. Create document entry
-    2. Chunk text into token-based segments
-    3. Generate embeddings for each chunk
-    4. Store in Postgres (docs + chunks + chunk_embeddings tables)
+    This endpoint accepts raw text content and stores it in the database for
+    retrieval. Use this when you want to ingest text without fetching from
+    YouTube (e.g., articles, documentation, custom content).
 
-    Returns ingestion metadata and timing.
+    **What happens:**
+    1. Creates a document entry with optional title and metadata
+    2. Chunks text into segments (400-800 tokens, using GPT-4 tokenizer)
+    3. Generates semantic embeddings for each chunk (if enabled)
+    4. Stores in Postgres for fast full-text and semantic search
+
+    **Required:** Raw text content (minimum 1 character)
+
+    **Optional:**
+    - title: Document title (for organization and filtering)
+    - metadata: Custom key-value pairs (author, source, category, etc.)
+
+    **Returns:** Document metadata including ID, chunk count, token count,
+    embedding generation status, and processing time in milliseconds.
     """
     try:
         pipeline = IngestionPipeline()
