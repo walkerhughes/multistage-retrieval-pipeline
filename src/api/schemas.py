@@ -131,13 +131,13 @@ class QueryRequest(BaseModel):
     semantic search, or a hybrid approach. Required parameter: 'query_text'.
     """
 
-    q: str = Field(
+    query: str = Field(
         ...,
         description="Search query (required). Examples: 'machine learning basics', 'what is neural network'",
         min_length=1,
         examples=["what is machine learning?"]
     )
-    n: int = Field(
+    max_returned: int = Field(
         50,
         description="Maximum number of chunks to return (default: 50, range: 1-100)",
         ge=1,
@@ -158,7 +158,7 @@ class QueryRequest(BaseModel):
                     "'and' returns chunks with both words.",
         examples=["or"]
     )
-    fts_candidates_for_reranking: int = Field(
+    fts_candidates: int = Field(
         100,
         description="Number of initial keyword-matched chunks to rerank semantically. "
                     "Only used in 'hybrid' mode. Higher values = better recall but slower (range: 1-500). "
