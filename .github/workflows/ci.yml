@@ -16,9 +16,9 @@ jobs:
       postgres:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_USER: retrieval_user
-          POSTGRES_PASSWORD: retrieval_pass
-          POSTGRES_DB: retrieval_db
+          POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ vars.POSTGRES_DB }}
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -45,30 +45,45 @@ jobs:
       - name: Wait for PostgreSQL
         run: |
           for i in {1..30}; do
-            pg_isready -h localhost -U retrieval_user -d retrieval_db && break
+            pg_isready -h localhost -U ${{ vars.POSTGRES_USER }} -d ${{ vars.POSTGRES_DB }} && break
             sleep 1
           done
 
       - name: Initialize database schema
         run: |
-          PGPASSWORD=retrieval_pass psql -h localhost -U retrieval_user -d retrieval_db -f src/database/schema.sql
+          PGPASSWORD=${{ secrets.POSTGRES_PASSWORD }} psql -h localhost -U ${{ vars.POSTGRES_USER }} -d ${{ vars.POSTGRES_DB }} -f src/database/schema.sql
 
       - name: Run unit tests
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: ${{ vars.POSTGRES_PORT }}
+          POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           .venv/bin/pytest tests/unit -v --tb=short
 
       - name: Run integration tests
-        run: |
-          .venv/bin/pytest tests/integration -v --tb=short
         env:
           POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          POSTGRES_USER: retrieval_user
-          POSTGRES_PASSWORD: retrieval_pass
-          POSTGRES_DB: retrieval_db
+          POSTGRES_PORT: ${{ vars.POSTGRES_PORT }}
+          POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          .venv/bin/pytest tests/integration -v --tb=short
 
       - name: Generate test report
         if: always()
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: ${{ vars.POSTGRES_PORT }}
+          POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           .venv/bin/pytest tests/ -v --tb=short --junit-xml=test-results.xml
 
