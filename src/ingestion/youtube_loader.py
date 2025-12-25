@@ -35,23 +35,23 @@ class YouTubeTranscriptFetcher:
 
     def fetch(self, url: str) -> YouTubeDocument:
         """
-        Fetch transcript and metadata from YouTube video.
+        Fetch transcript from YouTube video (without metadata).
 
         Args:
             url: YouTube video URL
 
         Returns:
-            YouTubeDocument with transcript and metadata
+            YouTubeDocument with transcript text
 
         Raises:
             ValueError: If URL is invalid or transcript unavailable
         """
         video_id = self.extract_video_id(url)
 
-        # Use LangChain's YoutubeLoader
+        # Use LangChain's YoutubeLoader without fetching video metadata
         loader = YoutubeLoader.from_youtube_url(
             url,
-            add_video_info=True,  # Fetch metadata
+            add_video_info=False,  # Skip metadata fetching (avoids pytube dependency)
             language=["en"],  # Prefer English transcripts
         )
 
@@ -63,33 +63,14 @@ class YouTubeTranscriptFetcher:
 
         doc = documents[0]
 
-        # Extract metadata
-        metadata = doc.metadata
-
-        # Parse published date if available
-        published_at = None
-        if "publish_date" in metadata:
-            try:
-                # Format: "2023-01-15 00:00:00"
-                published_at = datetime.strptime(
-                    metadata["publish_date"], "%Y-%m-%d %H:%M:%S"
-                )
-            except (ValueError, KeyError):
-                pass
-
         # Clean the transcript text (remove newlines and backslashes)
         cleaned_text = clean_transcript_text(doc.page_content)
 
         return YouTubeDocument(
             url=url,
-            title=metadata.get("title", "Unknown Title"),
+            title=f"YouTube Video {video_id}",  # Simple default title
             text=cleaned_text,
-            published_at=published_at,
-            author=metadata.get("author", None),
-            metadata={
-                "video_id": video_id,
-                "duration": metadata.get("length"),
-                "view_count": metadata.get("view_count"),
-                "description": metadata.get("description"),
-            },
+            published_at=None,  # No metadata available
+            author=None,  # No metadata available
+            metadata={"video_id": video_id},  # Minimal metadata
         )

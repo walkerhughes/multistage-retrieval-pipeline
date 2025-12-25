@@ -65,7 +65,7 @@ YouTube URL → LangChain Loader → Text Cleaner → Token Chunker → Postgres
 ### Key Components
 
 **1. Ingestion Pipeline** (`src/ingestion/`)
-- `youtube_loader.py`: Fetches transcripts using LangChain's YouTube loader with text cleaning
+- `youtube_loader.py`: Fetches transcripts using LangChain's YouTube loader (text only, no metadata)
 - `text_cleaner.py`: Cleans transcript text (removes newlines and backslashes)
 - `chunker.py`: Token-based chunking (400-800 tokens using tiktoken cl100k_base)
 - `pipeline.py`: Orchestrates fetch → clean → chunk → store workflow
