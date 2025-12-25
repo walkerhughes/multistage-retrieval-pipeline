@@ -6,6 +6,10 @@ import pytest
 
 from src.ingestion.pipeline import IngestionPipeline
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 class TestIngestionPipelineYouTubeURL:
     """Unit tests for IngestionPipeline.ingest_youtube_url method."""

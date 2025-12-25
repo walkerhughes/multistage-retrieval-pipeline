@@ -5,6 +5,10 @@ import sys
 from src.ingestion.youtube_loader import YouTubeTranscriptFetcher
 from src.ingestion.chunker import TokenBasedChunker
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 def test_youtube_loader():
     """Test YouTube transcript fetching."""
     print("Testing YouTube transcript loader...")

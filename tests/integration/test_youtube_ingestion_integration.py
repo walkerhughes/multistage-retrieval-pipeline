@@ -5,6 +5,10 @@ from unittest.mock import patch
 
 import pytest
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 # Mock YouTube document for testing (avoids real API calls)
 class MockYouTubeDocument:
