@@ -16,17 +16,30 @@ router = APIRouter(prefix="/retrieval", tags=["Retrieval"])
 
 @router.post("/query", response_model=QueryResponse)
 async def query_chunks(request: QueryRequest):
-    """
-    Retrieve chunks using the specified retrieval mode.
+    """Retrieve relevant text chunks from ingested documents
 
-    Supports:
-    - FTS: Full-Text Search with ts_rank scoring
-    - Vector: Semantic search using OpenAI embeddings + pgvector
-    - Hybrid: Combined FTS + Vector (coming soon)
-    - Metadata filters (date ranges, doc_type, source)
-    - Top N results
+    This endpoint searches through all ingested documents and returns the most
+    relevant text chunks based on your query. Choose your retrieval strategy:
 
-    Returns ranked chunks with timing information.
+    **Retrieval Modes:**
+    - **fts**: Fast keyword search using database indexes (~10-50ms). Best for
+      factual queries with specific terms.
+    - **vector**: Semantic search using AI embeddings. Slower but understands
+      meaning. Best for conceptual queries ('explain X', 'what is Y').
+    - **hybrid**: Combines both approaches - keyword search retrieves candidates,
+      then semantic ranking picks the best. Balanced recall and relevance.
+
+    **Query Operator (FTS & Hybrid modes):**
+    - **or**: Returns chunks matching ANY term (default, broader results)
+    - **and**: Returns chunks matching ALL terms (stricter, more specific)
+
+    **Metadata Filtering:**
+    Optional filters to narrow results by source, document type, or date range.
+
+    **Returns:**
+    - Ranked chunks with relevance scores
+    - Timing breakdown for debugging
+    - Query metadata
     """
     try:
         # Convert filters to dict if provided
@@ -38,23 +51,23 @@ async def query_chunks(request: QueryRequest):
         if request.mode == RetrievalMode.FTS:
             retriever = FullTextSearchRetriever()
             result = retriever.retrieve(
-                query=request.q,
-                n=request.n,
+                query=request.query,
+                n=request.max_returned,
                 filters=filters_dict,
                 operator=request.operator,
             )
         elif request.mode == RetrievalMode.VECTOR:
             retriever = VectorSimilarityRetriever()
             result = retriever.retrieve(
-                query=request.q,
-                n=request.n,
+                query=request.query,
+                n=request.max_returned,
                 filters=filters_dict,
             )
         elif request.mode == RetrievalMode.HYBRID:
             retriever = HybridRetriever()
             result = retriever.retrieve(
-                query=request.q,
-                n=request.n,
+                query=request.query,
+                n=request.max_returned,
                 filters=filters_dict,
                 fts_candidates=request.fts_candidates,
                 operator=request.operator,
@@ -90,21 +103,47 @@ async def query_chunks(request: QueryRequest):
 
 @router.get("/bench", response_model=BenchmarkResponse)
 async def benchmark_retrieval(
-    q: str = Query(..., description="Query string"),
-    mode: str = Query("fts", description="Retrieval mode: 'fts', 'vector', or 'hybrid'"),
-    operator: Literal["and", "or"] = Query("or", description="FTS operator: 'or' (broad) or 'and' (strict)"),
-    fts_candidates: int = Query(100, description="FTS candidates for hybrid mode", ge=1, le=500),
+    q: str = Query(
+        ...,
+        description="Search query (required). Example: 'machine learning optimization'",
+        examples=["what is attention in transformers?"]
+    ),
+    mode: str = Query(
+        "fts",
+        description="Retrieval mode to benchmark: 'fts' (keyword search), 'vector' (semantic search), or 'hybrid' (combined)",
+        examples=["fts"]
+    ),
+    operator: Literal["and", "or"] = Query(
+        "or",
+        description="FTS query operator (applies to 'fts' and 'hybrid' modes): 'or' = match any term (default), 'and' = match all terms",
+        examples=["or"]
+    ),
+    fts_candidates_for_reranking: int = Query(
+        100,
+        description="Number of initial keyword-matched chunks to rerank semantically in 'hybrid' mode (range: 1-500, default: 100)",
+        ge=1,
+        le=500,
+        examples=[100]
+    ),
 ):
-    """
-    Benchmark retrieval performance.
+    """Benchmark retrieval performance and verify index efficiency
 
-    Returns:
-    - Query execution time
-    - Number of results
-    - EXPLAIN ANALYZE output (index usage, scan types, etc.)
+    Use this endpoint to measure query performance, check index usage, and
+    detect performance regressions. Returns detailed EXPLAIN ANALYZE output
+    showing how the database executes your query.
 
-    Used to verify index efficiency and detect performance regressions.
-    Supports FTS, Vector, and Hybrid retrieval benchmarking.
+    **Performance Targets:**
+    - FTS: ~10-50ms (should use GIN index on tsvector)
+    - Vector: ~50-200ms (includes embedding generation)
+    - Hybrid: ~100-300ms (FTS + embedding + reranking)
+
+    **What You Get:**
+    - Query execution time in milliseconds
+    - Number of matching chunks
+    - EXPLAIN ANALYZE output showing:
+      - Index usage (critical for performance)
+      - Scan types and row counts
+      - Planning and execution time breakdown
     """
     try:
         # Select retriever based on mode
@@ -157,11 +196,11 @@ async def benchmark_retrieval(
             # Time the query (includes FTS + embedding + reranking)
             timer = Timer()
             timer.start()
-            result = retriever.retrieve(query=q, n=50, fts_candidates=fts_candidates, operator=operator)
+            result = retriever.retrieve(query=q, n=50, fts_candidates=fts_candidates_for_reranking, operator=operator)
             query_time_ms = timer.stop()
 
             # Get EXPLAIN output
-            explain_output = retriever.explain_query(query=q, fts_candidates=fts_candidates, operator=operator)
+            explain_output = retriever.explain_query(query=q, fts_candidates=fts_candidates_for_reranking, operator=operator)
 
             return BenchmarkResponse(
                 query_time_ms=round(query_time_ms, 2),
