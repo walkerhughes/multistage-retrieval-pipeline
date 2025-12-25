@@ -24,7 +24,9 @@ class IngestionPipeline:
                 print("Continuing without embeddings...")
                 self.generate_embeddings = False
 
-    def ingest_youtube_url(self, url: str) -> dict:
+    def ingest_youtube_url(
+        self, url: str, title: str | None = None, metadata: dict | None = None
+    ) -> dict:
         """
         Ingest a YouTube video transcript.
 
@@ -36,6 +38,8 @@ class IngestionPipeline:
 
         Args:
             url: YouTube video URL
+            title: Optional title override (uses YouTube video title if not provided)
+            metadata: Optional custom metadata to merge with YouTube metadata
 
         Returns:
             Dict with doc_id, chunk_count, and timing info
@@ -45,8 +49,10 @@ class IngestionPipeline:
         # Step 1: Fetch transcript
         doc = self.fetcher.fetch(url)
 
-        # Step 2: Insert document
-        doc_id = self._insert_document(doc)
+        # Step 2: Insert document (with optional overrides)
+        doc_id = self._insert_document(doc, title_override=title, custom_metadata=metadata)
+        if doc_id is None:
+            raise ValueError("Failed to insert document into database")
 
         # Step 3: Chunk text
         chunks = self.chunker.chunk(doc.text)
@@ -64,10 +70,13 @@ class IngestionPipeline:
         end_time = datetime.now()
         elapsed_ms = (end_time - start_time).total_seconds() * 1000
 
+        # Use override title if provided, otherwise use YouTube title
+        final_title = title if title else doc.title
+
         return {
             "doc_id": doc_id,
             "url": url,
-            "title": doc.title,
+            "title": final_title,
             "chunk_count": len(chunks),
             "total_tokens": sum(c.token_count for c in chunks),
             "ingestion_time_ms": round(elapsed_ms, 2),
@@ -98,6 +107,8 @@ class IngestionPipeline:
 
         # Step 1: Insert document
         doc_id = self._insert_raw_document(text, title, metadata)
+        if doc_id is None:
+            raise ValueError("Failed to insert document into database")
 
         # Step 2: Chunk text
         chunks = self.chunker.chunk(text)
@@ -125,29 +136,49 @@ class IngestionPipeline:
             "embeddings_generated": embeddings_generated,
         }
 
-    def _insert_document(self, doc) -> int:
-        """Insert document into docs table."""
+    def _insert_document(
+        self, doc, title_override: str | None = None, custom_metadata: dict | None = None
+    ) -> int | None:
+        """
+        Insert document into docs table.
+
+        Args:
+            doc: YouTubeDocument instance
+            title_override: Optional title to use instead of doc.title
+            custom_metadata: Optional custom metadata to merge with doc.metadata
+
+        Returns:
+            Document ID (or None if insert fails)
+        """
         query = """
             INSERT INTO docs (source, url, title, doc_type, published_at, raw_text, metadata)
             VALUES (%(source)s, %(url)s, %(title)s, %(doc_type)s, %(published_at)s, %(raw_text)s, %(metadata)s)
             RETURNING id
         """
 
+        # Use override title if provided, otherwise use document title
+        final_title = title_override if title_override else doc.title
+
+        # Merge custom metadata with YouTube metadata
+        final_metadata = {**doc.metadata}
+        if custom_metadata:
+            final_metadata.update(custom_metadata)
+
         params = {
             "source": "youtube",
             "url": doc.url,
-            "title": doc.title,
+            "title": final_title,
             "doc_type": "transcript",
             "published_at": doc.published_at,
             "raw_text": doc.text,
-            "metadata": json.dumps(doc.metadata),
+            "metadata": json.dumps(final_metadata),
         }
 
         return execute_insert(query, params)
 
     def _insert_raw_document(
         self, text: str, title: str | None, metadata: dict | None
-    ) -> int:
+    ) -> int | None:
         """Insert raw text document into docs table."""
         query = """
             INSERT INTO docs (source, url, title, doc_type, published_at, raw_text, metadata)

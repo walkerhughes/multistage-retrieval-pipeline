@@ -11,7 +11,7 @@ from src.retrieval.models import RetrievalMode
 
 
 class IngestRequest(BaseModel):
-    """Request body for POST /ingest
+    """Request body for POST /ingest/youtube
 
     Ingest a YouTube video by URL. The transcript will be automatically
     fetched, chunked into segments, and stored in the database.
@@ -21,6 +21,16 @@ class IngestRequest(BaseModel):
         ...,
         description="YouTube video URL (required)",
         examples=["https://www.youtube.com/watch?v=dQw4w9WgXcQ"]
+    )
+    title: Optional[str] = Field(
+        None,
+        description="Optional title override (uses YouTube video title if not provided)",
+        examples=["Introduction to Machine Learning"]
+    )
+    metadata: Optional[dict] = Field(
+        default_factory=dict,
+        description="Optional custom metadata as key-value pairs (e.g., author, category)",
+        examples=[{"category": "tutorial", "topic": "ml"}]
     )
 
 

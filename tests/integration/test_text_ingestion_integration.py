@@ -206,7 +206,7 @@ class TestTextIngestionEndpoint:
         ingest_data = ingest_response.json()
 
         # Act: Query
-        query_payload = {"q": "machine learning", "n": 10}
+        query_payload = {"query": "machine learning", "max_returned": 10}
         query_response = test_client.post("/api/retrieval/query", json=query_payload)
 
         # Assert
