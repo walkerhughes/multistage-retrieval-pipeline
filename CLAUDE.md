@@ -59,15 +59,16 @@ curl http://localhost:8000/api/health
 
 ### System Flow
 ```
-YouTube URL → LangChain Loader → Token Chunker → Postgres (FTS + tsvector) → FastAPI
+YouTube URL → LangChain Loader → Text Cleaner → Token Chunker → Postgres (FTS + tsvector) → FastAPI
 ```
 
 ### Key Components
 
 **1. Ingestion Pipeline** (`src/ingestion/`)
-- `youtube_loader.py`: Fetches transcripts using LangChain's YouTube loader
+- `youtube_loader.py`: Fetches transcripts using LangChain's YouTube loader with text cleaning
+- `text_cleaner.py`: Cleans transcript text (removes newlines and backslashes)
 - `chunker.py`: Token-based chunking (400-800 tokens using tiktoken cl100k_base)
-- `pipeline.py`: Orchestrates fetch → chunk → store workflow
+- `pipeline.py`: Orchestrates fetch → clean → chunk → store workflow
 
 **2. Database Layer** (`src/database/`)
 - `connection.py`: psycopg3 connection pool (2-10 connections)
@@ -118,17 +119,41 @@ YouTube URL → LangChain Loader → Token Chunker → Postgres (FTS + tsvector)
 
 ## API Endpoints
 
-### POST /api/ingest
-Ingest YouTube transcript. **Note:** YouTube may block automated requests (HTTP 400). Use `seed_test_data.py` for testing.
+### POST /api/ingest/youtube
+Ingest YouTube transcript with text cleaning and optional metadata. **Note:** YouTube may block automated requests (HTTP 400). Use `seed_test_data.py` for testing.
 
 Request:
 ```json
-{"url": "https://www.youtube.com/watch?v=VIDEO_ID"}
+{
+  "url": "https://www.youtube.com/watch?v=VIDEO_ID",
+  "title": "Optional title override",
+  "metadata": {"category": "tutorial", "topic": "ml"}
+}
 ```
 
-Returns: `doc_id`, `chunk_count`, `total_tokens`, `ingestion_time_ms`
+**Text Cleaning:** Automatically removes newlines (`\n`) and backslashes (`\`) from transcripts before chunking.
 
-### POST /api/query
+**Optional Fields:**
+- `title`: Override YouTube video title
+- `metadata`: Custom metadata to merge with YouTube metadata
+
+Returns: `doc_id`, `title`, `chunk_count`, `total_tokens`, `ingestion_time_ms`, `embeddings_generated`
+
+### POST /api/ingest/text
+Ingest raw text directly without fetching from YouTube.
+
+Request:
+```json
+{
+  "text": "Your text content here...",
+  "title": "Optional document title",
+  "metadata": {"author": "John Doe", "source": "manual"}
+}
+```
+
+Returns: Same as `/api/ingest/youtube`
+
+### POST /api/retrieval/query
 Retrieve chunks using FTS.
 
 Request:
@@ -147,17 +172,17 @@ Request:
 
 Returns: Ranked chunks with timing breakdown and metadata
 
-### GET /api/bench/retrieval
+### GET /api/retrieval/bench
 Performance benchmark with EXPLAIN ANALYZE output. Use this to verify GIN index usage and detect regressions.
 
-Query params: `?q=query&mode=fts`
+Query params: `?query=search+terms&mode=fts`
 
 Returns: `query_time_ms`, `rows_returned`, `explain` (full EXPLAIN ANALYZE output)
 
 ## Development Guidelines
 
 ### When Modifying Retrieval Logic
-1. Always test with `/api/bench/retrieval` to verify index usage
+1. Always test with `/api/retrieval/bench` to verify index usage
 2. Check EXPLAIN output confirms "Bitmap Index Scan on chunks_tsv_gin"
 3. Target: p95 < 50ms retrieval time
 4. Never introduce table scans on the chunks table

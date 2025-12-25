@@ -4,6 +4,8 @@ from typing import Optional
 
 from langchain_community.document_loaders import YoutubeLoader
 
+from src.ingestion.text_cleaner import clean_transcript_text
+
 
 @dataclass
 class YouTubeDocument:
@@ -75,10 +77,13 @@ class YouTubeTranscriptFetcher:
             except (ValueError, KeyError):
                 pass
 
+        # Clean the transcript text (remove newlines and backslashes)
+        cleaned_text = clean_transcript_text(doc.page_content)
+
         return YouTubeDocument(
             url=url,
             title=metadata.get("title", "Unknown Title"),
-            text=doc.page_content,
+            text=cleaned_text,
             published_at=published_at,
             author=metadata.get("author", None),
             metadata={

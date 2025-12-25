@@ -50,9 +50,10 @@ async def root():
         "service": "retrieval-evals",
         "milestone": "M1",
         "endpoints": [
-            "POST /api/ingest",
-            "POST /api/query",
-            "GET /api/bench/retrieval",
+            "POST /api/ingest/youtube",
+            "POST /api/ingest/text",
+            "POST /api/retrieval/query",
+            "GET /api/retrieval/bench",
             "GET /api/health",
         ],
     }
