@@ -51,25 +51,25 @@ async def query_chunks(request: QueryRequest):
         if request.mode == RetrievalMode.FTS:
             retriever = FullTextSearchRetriever()
             result = retriever.retrieve(
-                query=request.q,
-                n=request.n,
+                query=request.query,
+                n=request.max_returned,
                 filters=filters_dict,
                 operator=request.operator,
             )
         elif request.mode == RetrievalMode.VECTOR:
             retriever = VectorSimilarityRetriever()
             result = retriever.retrieve(
-                query=request.q,
-                n=request.n,
+                query=request.query,
+                n=request.max_returned,
                 filters=filters_dict,
             )
         elif request.mode == RetrievalMode.HYBRID:
             retriever = HybridRetriever()
             result = retriever.retrieve(
-                query=request.q,
-                n=request.n,
+                query=request.query,
+                n=request.max_returned,
                 filters=filters_dict,
-                fts_candidates=request.fts_candidates_for_reranking,
+                fts_candidates=request.fts_candidates,
                 operator=request.operator,
             )
         else:
