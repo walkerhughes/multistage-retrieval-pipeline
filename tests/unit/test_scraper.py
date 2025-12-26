@@ -1,9 +1,7 @@
 """Unit tests for YouTube channel scraper."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from lxml import html as html_parser
-from lxml.etree import ParserError
+from unittest.mock import Mock, patch
 
 from src.data.scraper import YouTubeChannelScraper
 
@@ -46,83 +44,64 @@ class TestYouTubeChannelScraper:
         video_id = YouTubeChannelScraper.extract_video_id(url)
         assert video_id is None
 
-    def test_normalize_url_relative(self):
-        """Test normalizing relative URLs."""
+    def test_extract_video_ids_from_json_single_video(self):
+        """Test extracting a single video ID from JSON."""
         scraper = YouTubeChannelScraper("TestChannel")
-        href = "/watch?v=dQw4w9WgXcQ"
-        normalized = scraper._normalize_url(href, "https://www.youtube.com")
-        assert normalized == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        page_text = 'var ytInitialData = {"videoId":"dQw4w9WgXcQ"}'
+        ids = scraper._extract_video_ids_from_json(page_text)
+        assert len(ids) == 1
+        assert ids[0] == "dQw4w9WgXcQ"
 
-    def test_normalize_url_absolute(self):
-        """Test normalizing absolute URLs."""
+    def test_extract_video_ids_from_json_multiple_videos(self):
+        """Test extracting multiple video IDs from JSON."""
         scraper = YouTubeChannelScraper("TestChannel")
-        href = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        normalized = scraper._normalize_url(href, "https://www.youtube.com")
-        assert normalized == "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        page_text = '''
+            "videoId":"video1abc1a"
+            "videoId":"video2abc1b"
+            "videoId":"video3abc1c"
+        '''
+        ids = scraper._extract_video_ids_from_json(page_text)
+        assert len(ids) == 3
+        assert "video1abc1a" in ids
+        assert "video2abc1b" in ids
+        assert "video3abc1c" in ids
 
-    def test_normalize_url_invalid(self):
-        """Test normalizing invalid URLs."""
+    def test_extract_video_ids_from_json_removes_duplicates(self):
+        """Test that duplicate video IDs are removed."""
         scraper = YouTubeChannelScraper("TestChannel")
-        href = "some-random-text"
-        normalized = scraper._normalize_url(href, "https://www.youtube.com")
-        assert normalized is None
+        page_text = '''
+            "videoId":"dQw4w9WgXcQ"
+            "videoId":"dQw4w9WgXcQ"
+            "videoId":"anotherVidX"
+        '''
+        ids = scraper._extract_video_ids_from_json(page_text)
+        assert len(ids) == 2
+        assert ids.count("dQw4w9WgXcQ") == 1
+        assert "anotherVidX" in ids
 
-    def test_extract_video_urls_empty(self):
-        """Test extracting video URLs from HTML with no videos."""
+    def test_extract_video_ids_from_json_empty(self):
+        """Test extracting from empty page."""
         scraper = YouTubeChannelScraper("TestChannel")
-        # Create a minimal HTML tree with no video links
-        html_content = "<html><body></body></html>"
-        tree = html_parser.fromstring(html_content)
-        urls = scraper._extract_video_urls(tree)
-        assert urls == []
+        page_text = "<html></html>"
+        ids = scraper._extract_video_ids_from_json(page_text)
+        assert ids == []
 
-    def test_extract_video_urls_single_video(self):
-        """Test extracting a single video URL."""
+    def test_extract_video_ids_valid_format(self):
+        """Test that only valid video IDs (11 chars) are extracted."""
         scraper = YouTubeChannelScraper("TestChannel")
-        html_content = """
-            <html>
-                <body>
-                    <a href="/watch?v=video1">Video 1</a>
-                </body>
-            </html>
-        """
-        tree = html_parser.fromstring(html_content)
-        urls = scraper._extract_video_urls(tree)
-        assert len(urls) == 1
-        assert "watch?v=video1" in urls[0]
-
-    def test_extract_video_urls_multiple_videos(self):
-        """Test extracting multiple video URLs."""
-        scraper = YouTubeChannelScraper("TestChannel")
-        html_content = """
-            <html>
-                <body>
-                    <a href="/watch?v=video1">Video 1</a>
-                    <a href="/watch?v=video2">Video 2</a>
-                    <a href="/watch?v=video3">Video 3</a>
-                </body>
-            </html>
-        """
-        tree = html_parser.fromstring(html_content)
-        urls = scraper._extract_video_urls(tree)
-        assert len(urls) == 3
-
-    def test_extract_video_urls_removes_duplicates(self):
-        """Test that duplicate video URLs are removed."""
-        scraper = YouTubeChannelScraper("TestChannel")
-        html_content = """
-            <html>
-                <body>
-                    <a href="/watch?v=video1">Thumbnail</a>
-                    <a href="/watch?v=video1">Title</a>
-                    <a href="/watch?v=video2">Video 2</a>
-                </body>
-            </html>
-        """
-        tree = html_parser.fromstring(html_content)
-        urls = scraper._extract_video_urls(tree)
-        # Should have 2 unique videos, not 3
-        assert len(urls) == 2
+        page_text = '''
+            "videoId":"validId1234"
+            "videoId":"shortid"
+            "videoId":"toolongidthatshouldnotmatch"
+            "videoId":"valid1234_-"
+        '''
+        ids = scraper._extract_video_ids_from_json(page_text)
+        # Should only match the valid ones (11 chars exactly)
+        assert "validId1234" in ids
+        assert "valid1234_-" in ids
+        # Invalid length ones should not match
+        assert "shortid" not in ids
+        assert "toolongidthatshouldnotmatch" not in ids
 
     @patch("src.data.scraper.requests.get")
     def test_scrape_video_urls_success(self, mock_get):
@@ -131,19 +110,19 @@ class TestYouTubeChannelScraper:
 
         # Mock response
         mock_response = Mock()
-        mock_response.content = b"""
-            <html>
-                <body>
-                    <a href="/watch?v=video1">Video 1</a>
-                    <a href="/watch?v=video2">Video 2</a>
-                </body>
-            </html>
-        """
+        mock_response.text = '''
+            var ytInitialData = {"contents": [
+                {"videoId":"dQw4w9WgXcQ"},
+                {"videoId":"jNQXAC9IVRw"}
+            ]}
+        '''
         mock_response.raise_for_status = Mock()
         mock_get.return_value = mock_response
 
         urls = scraper.scrape_video_urls()
         assert len(urls) == 2
+        assert "watch?v=dQw4w9WgXcQ" in urls[0]
+        assert "watch?v=jNQXAC9IVRw" in urls[1]
         mock_get.assert_called_once()
 
     @patch("src.data.scraper.requests.get")
@@ -159,32 +138,14 @@ class TestYouTubeChannelScraper:
         with pytest.raises(ValueError, match="Failed to fetch channel page"):
             scraper.scrape_video_urls()
 
-    @patch("src.data.scraper.html_parser.fromstring")
-    @patch("src.data.scraper.requests.get")
-    def test_scrape_video_urls_parse_error(self, mock_get, mock_parse):
-        """Test handling of parse errors during scraping."""
-        scraper = YouTubeChannelScraper("TestChannel")
-
-        # Mock response
-        mock_response = Mock()
-        mock_response.content = b"<html></html>"
-        mock_response.raise_for_status = Mock()
-        mock_get.return_value = mock_response
-
-        # Mock parse to raise ParserError
-        mock_parse.side_effect = ParserError("Parse error")
-
-        with pytest.raises(ValueError, match="Failed to parse HTML"):
-            scraper.scrape_video_urls()
-
     @patch("src.data.scraper.requests.get")
     def test_scrape_video_urls_no_videos_found(self, mock_get):
         """Test handling when no videos are found."""
         scraper = YouTubeChannelScraper("TestChannel")
 
-        # Mock response with no video links
+        # Mock response with no video data
         mock_response = Mock()
-        mock_response.content = b"<html><body>No videos</body></html>"
+        mock_response.text = "<html>No videos</html>"
         mock_response.raise_for_status = Mock()
         mock_get.return_value = mock_response
 
@@ -197,7 +158,7 @@ class TestYouTubeChannelScraper:
         scraper = YouTubeChannelScraper("TestChannel")
 
         mock_response = Mock()
-        mock_response.content = b'<html><body><a href="/watch?v=video1">Video</a></body></html>'
+        mock_response.text = '"videoId":"dQw4w9WgXcQ"'
         mock_response.raise_for_status = Mock()
         mock_get.return_value = mock_response
 
@@ -219,3 +180,35 @@ class TestYouTubeChannelScraper:
 
         with pytest.raises(ValueError, match="Failed to fetch channel page"):
             scraper.scrape_video_urls()
+
+    @patch("src.data.scraper.requests.get")
+    def test_scrape_video_urls_creates_valid_urls(self, mock_get):
+        """Test that returned URLs are valid YouTube watch URLs."""
+        scraper = YouTubeChannelScraper("TestChannel")
+
+        mock_response = Mock()
+        mock_response.text = '''
+            "videoId":"abc123456XY"
+            "videoId":"def123456XY"
+        '''
+        mock_response.raise_for_status = Mock()
+        mock_get.return_value = mock_response
+
+        urls = scraper.scrape_video_urls()
+
+        for url in urls:
+            assert url.startswith("https://www.youtube.com/watch?v=")
+            assert len(url) == len("https://www.youtube.com/watch?v=") + 11
+
+    def test_scrape_video_urls_integration_with_extract_video_id(self):
+        """Test that extracted URLs work with video ID extraction."""
+        scraper = YouTubeChannelScraper("TestChannel")
+
+        # Simulate what scrape_video_urls returns
+        video_ids = ["dQw4w9WgXcQ", "jNQXAC9IVRw"]
+        video_urls = [f"https://www.youtube.com/watch?v={vid}" for vid in video_ids]
+
+        # Verify we can extract IDs back
+        for url in video_urls:
+            extracted_id = YouTubeChannelScraper.extract_video_id(url)
+            assert extracted_id in video_ids

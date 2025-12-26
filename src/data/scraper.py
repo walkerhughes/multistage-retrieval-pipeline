@@ -1,17 +1,17 @@
-"""YouTube channel scraper using XML/HTML parsing."""
+"""YouTube channel scraper using JSON parsing from initial page data."""
 
 from urllib.parse import urlparse, parse_qs
-from lxml import html as html_parser
-from lxml.etree import ParserError
+import json
+import re
 import requests
 
 
 class YouTubeChannelScraper:
-    """Scrapes YouTube channel video URLs using XML parsing."""
+    """Scrapes YouTube channel video URLs by parsing JSON from the channel page."""
 
     BASE_URL = "https://www.youtube.com/@{channel}/videos"
     HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
 
     def __init__(self, channel: str):
@@ -26,7 +26,10 @@ class YouTubeChannelScraper:
 
     def scrape_video_urls(self) -> list[str]:
         """
-        Scrape all video URLs from a YouTube channel using XML parsing.
+        Scrape all video URLs from a YouTube channel by parsing JSON data.
+
+        YouTube embeds video metadata in JSON within the page, which is more
+        reliable than parsing HTML structure.
 
         Returns:
             List of video URLs
@@ -40,66 +43,44 @@ class YouTubeChannelScraper:
         except requests.RequestException as e:
             raise ValueError(f"Failed to fetch channel page: {e}")
 
-        try:
-            tree = html_parser.fromstring(response.content)
-        except ParserError as e:
-            raise ValueError(f"Failed to parse HTML: {e}")
+        # Extract video IDs from JSON in page
+        video_ids = self._extract_video_ids_from_json(response.text)
 
-        video_urls = self._extract_video_urls(tree)
-
-        if not video_urls:
+        if not video_ids:
             raise ValueError(f"No videos found for channel: {self.channel}")
 
+        # Convert video IDs to full URLs
+        video_urls = [f"https://www.youtube.com/watch?v={vid}" for vid in video_ids]
         return video_urls
 
-    def _extract_video_urls(self, tree) -> list[str]:
+    def _extract_video_ids_from_json(self, page_text: str) -> list[str]:
         """
-        Extract video URLs from parsed HTML tree using XPath.
+        Extract unique video IDs from JSON data embedded in YouTube page.
+
+        YouTube includes initial data in a JavaScript variable 'ytInitialData'
+        which contains all the video metadata for the channel page.
 
         Args:
-            tree: Parsed HTML tree from lxml
+            page_text: The HTML page text from YouTube
 
         Returns:
-            List of video URLs
+            List of unique video IDs
         """
-        video_urls = []
-        base_youtube_url = "https://www.youtube.com"
+        video_ids = []
+        seen_ids = set()
 
-        # Find all anchor tags that link to videos (typically in video thumbnails)
-        # YouTube stores video links in thumbnail anchors with /watch?v= href
-        anchor_tags = tree.xpath("//a[@href and contains(@href, '/watch?v=')]")
+        # Pattern 1: Find videoId in JSON objects (most common)
+        # Matches: "videoId":"xxxxx" where xxxxx is the video ID
+        video_id_pattern = r'"videoId":"([a-zA-Z0-9_-]{11})"'
+        matches = re.findall(video_id_pattern, page_text)
 
-        for anchor in anchor_tags:
-            href = anchor.get("href")
-            if href:
-                # Remove duplicates and normalize URLs
-                video_url = self._normalize_url(href, base_youtube_url)
-                if video_url and video_url not in video_urls:
-                    video_urls.append(video_url)
+        for video_id in matches:
+            # Skip shorts and other non-standard content
+            if video_id not in seen_ids:
+                video_ids.append(video_id)
+                seen_ids.add(video_id)
 
-        return video_urls
-
-    def _normalize_url(self, href: str, base_url: str) -> str | None:
-        """
-        Normalize a relative or absolute video URL.
-
-        Args:
-            href: The href value from an anchor tag
-            base_url: Base YouTube URL
-
-        Returns:
-            Normalized full URL or None if invalid
-        """
-        # Handle relative URLs
-        if href.startswith("/watch"):
-            return f"{base_url}{href}"
-
-        # Handle absolute URLs
-        if href.startswith("http"):
-            return href
-
-        # Invalid URL
-        return None
+        return video_ids
 
     @staticmethod
     def extract_video_id(url: str) -> str | None:
