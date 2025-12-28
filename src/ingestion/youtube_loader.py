@@ -4,7 +4,10 @@ from typing import Optional
 
 from langchain_community.document_loaders import YoutubeLoader
 
-from src.ingestion.text_cleaner import clean_transcript_text
+try:
+    from src.ingestion.text_cleaner import clean_transcript_text
+except ImportError:
+    from ingestion.text_cleaner import clean_transcript_text
 
 
 @dataclass

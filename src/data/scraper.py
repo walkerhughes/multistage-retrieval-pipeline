@@ -47,6 +47,9 @@ class YouTubeChannelScraper:
         video_ids = self._extract_video_ids_from_json(response.text)
 
         if not video_ids:
+            # Debug: print first 1000 chars of response for diagnostics
+            print(f"[DEBUG] Response length: {len(response.text)}")
+            print(f"[DEBUG] First 500 chars: {response.text[:500]}")
             raise ValueError(f"No videos found for channel: {self.channel}")
 
         # Convert video IDs to full URLs
