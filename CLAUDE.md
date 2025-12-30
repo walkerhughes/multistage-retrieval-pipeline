@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A Postgres-first, high-performance retrieval system for YouTube video transcripts. The system emphasizes **fast, index-backed retrieval** (milliseconds) with evaluation-driven quality improvements. Currently at **M1 (Retrieval Baseline)** with Full-Text Search.
+A Postgres-first, high-performance retrieval system for YouTube video transcripts. The system emphasizes **fast, index-backed retrieval** (milliseconds) with evaluation-driven quality improvements.
 
 **Core Principle:** Retrieve broadly and cheaply → reason narrowly and expensively
 
@@ -21,29 +21,17 @@ cp .env.example .env
 
 ### Database Operations
 ```bash
-# Start Postgres with schema auto-initialization
-docker compose up -d
+# Start new Postgres with schema auto-initialization
+make service
 
-# Verify database health
-docker exec retrieval-evals-db pg_isready -U retrieval_user -d retrieval_db
-
-# Connect to database for debugging
-docker exec -it retrieval-evals-db psql -U retrieval_user -d retrieval_db
-
-# Stop database
+# Stop database/api
 docker compose down
 ```
 
 ### Running the Application
 ```bash
 # Start API server (with hot reload)
-.venv/bin/python -m src.main
-
-# Seed test data (YouTube API can be unreliable)
-.venv/bin/python seed_test_data.py
-
-# Test ingestion pipeline
-.venv/bin/python test_ingestion.py
+make api
 ```
 
 ### API Testing
@@ -102,8 +90,7 @@ YouTube URL → LangChain Loader → Text Cleaner → Token Chunker → Postgres
 - Indexed on: tsvector (GIN - critical for performance), (doc_id, ord) unique
 
 **chunk_embeddings table:**
-- Created for M5 (hybrid retrieval)
-- pgvector extension enabled but not yet used
+- pgvector extension enabled and populates as new chunks added
 
 ### Performance Characteristics
 
@@ -210,13 +197,6 @@ Returns: `query_time_ms`, `rows_returned`, `explain` (full EXPLAIN ANALYZE outpu
 - Not a bug in the system - use `seed_test_data.py` for local testing
 - Production systems should implement retry logic and fallbacks
 
-## Future Milestones (Roadmap)
-
-- **M2**: Reranking agent with citation-enforced answers (K=8 selected from N=50)
-- **M3**: LangSmith eval harness (retrieval-only vs reranked comparison)
-- **M4**: Recency-aware scoring, domain allowlists, date filters
-- **M5**: Hybrid retrieval (FTS + pgvector embeddings)
-
 ## Files of Interest
 
 ### Configuration & Setup
@@ -227,13 +207,8 @@ Returns: `query_time_ms`, `rows_returned`, `explain` (full EXPLAIN ANALYZE outpu
 ### Core Implementation
 - `src/main.py`: FastAPI app with lifespan management
 - `src/ingestion/pipeline.py`: End-to-end ingestion orchestration
-- `src/retrieval/fts.py`: Full-Text Search implementation
+- `src/retrieval/`: Retrieval implementations
 - `src/database/schema.sql`: Database schema with indexes
-
-### Testing & Utilities
-- `seed_test_data.py`: Test data seeding script
-- `test_ingestion.py`: Ingestion pipeline testing
-- `src/utils/timing.py`: Performance timing utilities
 
 ## Important Implementation Notes
 
@@ -253,3 +228,9 @@ Returns: `query_time_ms`, `rows_returned`, `explain` (full EXPLAIN ANALYZE outpu
 - Retrieval timing is separate from total request timing
 - Benchmark endpoint provides EXPLAIN ANALYZE for query optimization
 - Use BUFFERS option in EXPLAIN for I/O analysis
+
+### Testing
+New code must be tested with proper unit & integration tests as necessary in the `tests/` directory. These tests are run as part of the CI pipeline to avoid regressions.
+
+### Type-Safety
+Use the command `pyrefly check` to identify errors and address them before any commits.
