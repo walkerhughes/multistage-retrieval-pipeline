@@ -1,15 +1,12 @@
-import os
 import asyncio
 import httpx
-from openai import OpenAI
-from langsmith.wrappers import wrap_openai
 from langsmith import traceable
+
+from src.config import settings
 
 from dotenv import load_dotenv
 
 load_dotenv()
-
-API_BASE_URL = str(os.getenv("API_BASE_URL"))
 
 
 @traceable(name="retrieval")
@@ -22,7 +19,7 @@ async def query_database(query: str = ""):
     Returns:
         List of retrieved chunks with metadata
     """
-    async with httpx.AsyncClient(base_url=API_BASE_URL) as client:
+    async with httpx.AsyncClient(base_url=str(settings.api_base_url)) as client:
         resp = await client.post("api/retrieval/query", json={
             "query": query,
             "max_returned": 10,
@@ -32,9 +29,6 @@ async def query_database(query: str = ""):
         })
         resp.raise_for_status()
         return resp.json()["chunks"]
-
-
-client = wrap_openai(OpenAI())  # LangSmith automatically tracks costs via wrap_openai
 
 
 @traceable(name="vanilla_rag")
@@ -65,8 +59,8 @@ async def rag(question: str) -> str:
         "Answer the user's question using only the provided information below:\n"
         + final
     )
-    resp = client.chat.completions.create(
-        model="gpt-5-nano",
+    resp = settings.client.chat.completions.create(
+        model=settings.chat_model,
         messages=[
             {"role": "system", "content": system_message},
             {"role": "user", "content": question},
@@ -82,8 +76,3 @@ if __name__ == "__main__":
 
     print(response)
     print(f"\nTotal time elapsed in seconds: {total}")
-    print("\nCheck LangSmith dashboard for detailed traces including:")
-    print("- Token usage (input/output)")
-    print("- Cost tracking")
-    print("- Latency breakdown")
-    print("- Retrieved chunks")
