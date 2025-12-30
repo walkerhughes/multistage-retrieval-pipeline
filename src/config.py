@@ -1,3 +1,5 @@
+from openai import OpenAI
+from langsmith.wrappers import wrap_openai
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,10 +29,18 @@ class Settings(BaseSettings):
     api_port: int = 8000
     api_base_url: str | None = None
 
-    # OpenAI Embeddings
+    # OpenAI
     openai_api_key: str | None = None
+    chat_model: str = "gpt-4.1-nano"
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
+
+    @property
+    def client(self):
+        """Lazy-initialized OpenAI client wrapped with LangSmith tracing."""
+        if not hasattr(self, "_client"):
+            self._client = wrap_openai(OpenAI(api_key=self.openai_api_key))
+        return self._client
 
     @property
     def database_url(self) -> str:
