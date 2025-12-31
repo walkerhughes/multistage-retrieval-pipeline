@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
 
+    # LangSmith (optional - for agent tracing)
+    langsmith_api_key: str | None = None
+    langsmith_project: str = "retrieval-evals"
+    langsmith_tracing_enabled: bool = False
+
     @property
     def client(self):
         """Lazy-initialized OpenAI client."""

@@ -24,10 +24,11 @@ dependencies = [
     # Development
     "httpx>=0.25.0",
     "openai>=2.14.0",
+    "openai-agents>=0.0.16",
     "pytest>=9.0.2",
     # Observability
     "langchain-openai>=1.1.6",
-    "langsmith>=0.5.1",
+    "langsmith[openai-agents]>=0.5.1",
 ]
 
 [tool.pyrefly]
