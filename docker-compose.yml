@@ -34,6 +34,10 @@ services:
       API_PORT: 8000
       API_BASE_URL: http://localhost:8000
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # LangSmith tracing (optional)
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-retrieval-evals}
+      LANGSMITH_TRACING_ENABLED: ${LANGSMITH_TRACING_ENABLED:-false}
     ports:
       - "8000:8000"
     depends_on:
