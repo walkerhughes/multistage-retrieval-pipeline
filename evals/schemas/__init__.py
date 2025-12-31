@@ -1,6 +1,6 @@
 """Evaluation data schemas."""
 
-from evals.schemas.eval_example import (
+from evals.schemas.task import (
     DifficultyLevel,
     EvalDataset,
     EvalTask,
