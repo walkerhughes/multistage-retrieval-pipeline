@@ -154,23 +154,107 @@ class TestChatCompletionEndpoint:
         data = response.json()
         assert "answer" in data
 
-    def test_chat_completion_multi_query_not_implemented(self, test_client):
-        """Test that multi-query agent returns appropriate error."""
+    @pytest.mark.requires_openai
+    def test_chat_completion_multi_query_basic(self, test_client):
+        """Test basic chat completion with multi-query agent."""
+        if not os.getenv("OPENAI_API_KEY"):
+            pytest.skip("OPENAI_API_KEY not set")
+
         # Arrange
         payload = {
-            "question": "What is machine learning?",
+            "question": "What is machine learning and how does it relate to pattern recognition?",
             "agent": "multi-query",
             "mode": "fts",
+            "max_returned": 10,
         }
 
         # Act
         response = test_client.post("/api/chat/completion", json=payload)
 
-        # Assert - should get 400 with NotImplementedError message
-        assert response.status_code == 400
+        # Assert
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
         data = response.json()
-        assert "not yet implemented" in data["detail"].lower()
-        assert "Issue #13" in data["detail"]
+
+        # Verify standard response structure
+        assert "answer" in data
+        assert len(data["answer"]) > 0, "Answer should not be empty"
+        assert "trace_id" in data
+        assert "latency_ms" in data
+        assert data["latency_ms"] > 0
+        assert "retrieved_chunks" in data
+        assert "model_used" in data
+        assert "tokens_used" in data
+
+        # Verify multi-query specific fields
+        assert "sub_queries" in data
+        assert len(data["sub_queries"]) >= 2, "Should have at least 2 sub-queries"
+        assert len(data["sub_queries"]) <= 5, "Should have at most 5 sub-queries"
+
+        assert "chunks_per_subquery" in data
+        assert len(data["chunks_per_subquery"]) > 0, "Should have chunks per subquery stats"
+
+        assert "deduplication_stats" in data
+        assert "total_before_dedup" in data["deduplication_stats"]
+        assert "unique_chunks" in data["deduplication_stats"]
+        assert "duplicates_removed" in data["deduplication_stats"]
+        assert "chunks_boosted" in data["deduplication_stats"]
+
+    @pytest.mark.requires_openai
+    def test_chat_completion_multi_query_deduplication(self, test_client):
+        """Test that multi-query agent properly deduplicates chunks."""
+        if not os.getenv("OPENAI_API_KEY"):
+            pytest.skip("OPENAI_API_KEY not set")
+
+        # Arrange - question that likely retrieves overlapping chunks
+        payload = {
+            "question": "What is machine learning?",
+            "agent": "multi-query",
+            "mode": "fts",
+            "max_returned": 15,
+        }
+
+        # Act
+        response = test_client.post("/api/chat/completion", json=payload)
+
+        # Assert
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify deduplication occurred
+        stats = data["deduplication_stats"]
+        total_before = stats["total_before_dedup"]
+        unique_after = stats["unique_chunks"]
+
+        # Total before should be >= unique after (dedup removes duplicates)
+        assert total_before >= unique_after, "Dedup should not increase chunk count"
+
+        # Verify chunks_returned respects max_returned
+        assert stats["chunks_returned"] <= 15
+
+    @pytest.mark.requires_openai
+    def test_chat_completion_multi_query_hybrid_mode(self, test_client):
+        """Test multi-query agent with hybrid retrieval mode."""
+        if not os.getenv("OPENAI_API_KEY"):
+            pytest.skip("OPENAI_API_KEY not set")
+
+        # Arrange
+        payload = {
+            "question": "How do algorithms learn patterns from data?",
+            "agent": "multi-query",
+            "mode": "hybrid",
+            "operator": "or",
+            "fts_candidates": 50,
+            "max_returned": 10,
+        }
+
+        # Act
+        response = test_client.post("/api/chat/completion", json=payload)
+
+        # Assert
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["answer"]) > 0
+        assert len(data["sub_queries"]) >= 2
 
     def test_chat_completion_default_agent(self, test_client):
         """Test that default agent is vanilla."""

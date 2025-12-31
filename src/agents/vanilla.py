@@ -9,117 +9,12 @@ LangSmith tracing is enabled via OpenAIAgentsTracingProcessor when configured.
 
 from typing import Any
 
-from agents import Agent, Runner, function_tool, set_trace_processors  # pyrefly: ignore
-from langsmith import get_current_run_tree
-from langsmith.wrappers import OpenAIAgentsTracingProcessor
+from agents import Agent, Runner, function_tool  # pyrefly: ignore
 
+from src.agents.helpers import get_trace_id, initialize_tracing, retrieve_chunks
 from src.agents.models import AgentResponse, RetrievedChunk
 from src.config import settings
-from src.retrieval import (
-    FullTextSearchRetriever,
-    HybridRetriever,
-    VectorSimilarityRetriever,
-)
 from src.utils.timing import Timer
-
-# Track whether tracing has been initialized (singleton pattern)
-_tracing_initialized = False
-
-
-def _retrieve_chunks(
-    query: str,
-    retrieval_params: dict[str, Any],
-) -> list[RetrievedChunk]:
-    """Retrieve relevant chunks using the retrieval system directly.
-
-    Args:
-        query: Search query
-        retrieval_params: Retrieval configuration
-
-    Returns:
-        List of RetrievedChunk objects
-    """
-    mode = retrieval_params.get("mode", "hybrid")
-    max_returned = retrieval_params.get("max_returned", 10)
-    operator = retrieval_params.get("operator", "or")
-    fts_candidates = retrieval_params.get("fts_candidates", 100)
-    filters = retrieval_params.get("filters")
-
-    # Select retriever based on mode (mode is always a string from API layer)
-    if mode == "fts":
-        retriever = FullTextSearchRetriever()
-        result = retriever.retrieve(
-            query=query,
-            n=max_returned,
-            filters=filters,
-            operator=operator,
-        )
-    elif mode == "vector":
-        retriever = VectorSimilarityRetriever()
-        result = retriever.retrieve(
-            query=query,
-            n=max_returned,
-            filters=filters,
-        )
-    elif mode == "hybrid":
-        retriever = HybridRetriever()
-        result = retriever.retrieve(
-            query=query,
-            n=max_returned,
-            filters=filters,
-            fts_candidates=fts_candidates,
-            operator=operator,
-        )
-    else:
-        raise ValueError(f"Invalid mode: {mode}. Use 'fts', 'vector', or 'hybrid'.")
-
-    return [
-        RetrievedChunk(
-            chunk_id=chunk.chunk_id,
-            doc_id=chunk.doc_id,
-            text=chunk.text,
-            score=chunk.score,
-            metadata=chunk.metadata,
-            ord=chunk.ord,
-        )
-        for chunk in result.chunks
-    ]
-
-
-def _initialize_tracing() -> None:
-    """Initialize LangSmith tracing if configured.
-
-    Sets up the OpenAIAgentsTracingProcessor to capture agent execution
-    traces in LangSmith. Only initializes once, and only if LANGSMITH_API_KEY
-    is set and tracing is enabled.
-    """
-    global _tracing_initialized
-
-    if _tracing_initialized:
-        return
-
-    if settings.langsmith_api_key and settings.langsmith_tracing_enabled:
-        processor = OpenAIAgentsTracingProcessor(
-            project_name=settings.langsmith_project,
-        )
-        set_trace_processors([processor])
-
-    _tracing_initialized = True
-
-
-def _get_trace_id() -> str | None:
-    """Get the current LangSmith trace ID if available.
-
-    Returns:
-        The trace ID string if tracing is active, None otherwise.
-    """
-    try:
-        run_tree = get_current_run_tree()
-        if run_tree:
-            return str(run_tree.id)
-    except Exception:
-        pass
-    return None
 
 
 class VanillaRAGAgent:
@@ -143,7 +38,7 @@ class VanillaRAGAgent:
         because the retrieval tool needs to capture the retrieval_params.
         """
         # Initialize tracing once (idempotent)
-        _initialize_tracing()
+        initialize_tracing()
 
     async def generate(
         self,
@@ -190,7 +85,7 @@ class VanillaRAGAgent:
                 nonlocal retrieved_chunks
 
                 # Retrieve chunks using the configured parameters
-                chunks = _retrieve_chunks(query, retrieval_params)
+                chunks = retrieve_chunks(query, retrieval_params)
 
                 # Store chunks for later inclusion in AgentResponse
                 retrieved_chunks.extend(chunks)
@@ -236,7 +131,7 @@ When answering questions:
         answer = str(result.final_output) if result.final_output else ""
 
         # Get trace ID if available
-        trace_id = _get_trace_id()
+        trace_id = get_trace_id()
 
         # Calculate total token usage from all model responses
         total_input_tokens = 0

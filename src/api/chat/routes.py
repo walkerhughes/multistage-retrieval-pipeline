@@ -26,8 +26,8 @@ async def chat_completion(request: ChatCompletionRequest):
     - **vanilla**: Single-query RAG - retrieves chunks for the original question
       and generates an answer. Fast and simple. (Default)
     - **multi-query**: Query decomposition RAG - breaks the question into
-      sub-queries, retrieves for each, deduplicates, and synthesizes.
-      (Not yet implemented - see Issue #13)
+      2-5 MECE sub-queries, retrieves for each in parallel, deduplicates with
+      score boosting, and synthesizes a comprehensive answer.
 
     **Retrieval Modes:**
     - **fts**: Fast keyword search (~10-50ms)
@@ -77,6 +77,10 @@ async def chat_completion(request: ChatCompletionRequest):
             ],
             model_used=result.model_used,
             tokens_used=result.tokens_used,
+            # Multi-query specific fields (empty for vanilla agent)
+            sub_queries=result.sub_queries,
+            chunks_per_subquery=result.chunks_per_subquery,
+            deduplication_stats=result.deduplication_stats,
         )
 
     except NotImplementedError as e:
