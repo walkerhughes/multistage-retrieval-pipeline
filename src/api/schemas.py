@@ -3,6 +3,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, HttpUrl
 
+from src.agents.models import AgentType
 from src.retrieval.models import RetrievalMode
 
 # ============================================
@@ -268,4 +269,129 @@ class BenchmarkResponse(BaseModel):
     query: str = Field(
         ...,
         description="Echo of the query string you provided"
+    )
+
+
+# ============================================
+# Chat Completion Schemas
+# ============================================
+
+
+class ChatCompletionRequest(BaseModel):
+    """Request body for POST /chat/completion
+
+    Generate an answer to a question using the RAG pipeline. Choose an agent
+    type and configure retrieval parameters for evaluation purposes.
+    """
+
+    question: str = Field(
+        ...,
+        description="User question to answer (required)",
+        min_length=1,
+        max_length=2000,
+        examples=["What have Dwarkesh's guests said about the timeline for AGI?"]
+    )
+    agent: AgentType = Field(
+        AgentType.VANILLA,
+        description="Agent type to use: 'vanilla' (single-query RAG) or "
+                    "'multi-query' (query decomposition, not yet implemented). Default: 'vanilla'",
+        examples=["vanilla"]
+    )
+    mode: RetrievalMode = Field(
+        RetrievalMode.HYBRID,
+        description="Retrieval mode: 'fts' (keyword), 'vector' (semantic), or 'hybrid' (combined). "
+                    "Default: 'hybrid'",
+        examples=["hybrid"]
+    )
+    operator: Literal["and", "or"] = Field(
+        "or",
+        description="FTS query operator: 'or' (match any term) or 'and' (match all terms). "
+                    "Default: 'or'",
+        examples=["or"]
+    )
+    fts_candidates: int = Field(
+        100,
+        description="Number of FTS candidates for hybrid reranking (range: 1-500). Default: 100",
+        ge=1,
+        le=500,
+        examples=[100]
+    )
+    max_returned: int = Field(
+        10,
+        description="Maximum chunks to retrieve for context (range: 1-100). Default: 10",
+        ge=1,
+        le=100,
+        examples=[10]
+    )
+    filters: Optional[QueryFilters] = Field(
+        None,
+        description="Optional metadata filters (source, doc_type, date range)"
+    )
+
+
+class RetrievedChunkResponse(BaseModel):
+    """A chunk used as context for answer generation.
+
+    Represents a text segment retrieved from the database and used
+    to ground the generated answer.
+    """
+
+    chunk_id: int = Field(
+        ...,
+        description="Unique identifier for this chunk"
+    )
+    doc_id: int = Field(
+        ...,
+        description="ID of the parent document"
+    )
+    text: str = Field(
+        ...,
+        description="Text content of the chunk"
+    )
+    score: float = Field(
+        ...,
+        description="Relevance score from retrieval"
+    )
+    metadata: dict = Field(
+        ...,
+        description="Document metadata (title, source, etc.)"
+    )
+    ord: int = Field(
+        ...,
+        description="Position within the parent document"
+    )
+
+
+class ChatCompletionResponse(BaseModel):
+    """Response from POST /chat/completion
+
+    Contains the generated answer along with metadata about the RAG pipeline
+    execution including retrieved chunks, timing, and token usage.
+    """
+
+    answer: str = Field(
+        ...,
+        description="Generated answer to the question"
+    )
+    trace_id: Optional[str] = Field(
+        None,
+        description="LangSmith trace ID for debugging and observability. "
+                    "Use to inspect the full execution trace in LangSmith dashboard."
+    )
+    latency_ms: float = Field(
+        ...,
+        description="Total agent execution time in milliseconds (retrieval + generation)"
+    )
+    retrieved_chunks: list[RetrievedChunkResponse] = Field(
+        ...,
+        description="Chunks used as context for answer generation. "
+                    "Inspect these to verify answer grounding."
+    )
+    model_used: str = Field(
+        ...,
+        description="LLM model used for answer generation"
+    )
+    tokens_used: dict = Field(
+        ...,
+        description="Token usage breakdown: prompt_tokens, completion_tokens, total_tokens"
     )
