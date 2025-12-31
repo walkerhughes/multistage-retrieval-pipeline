@@ -7,18 +7,22 @@ replaced with a proper class-based agent with full instrumentation.
 
 from typing import Any
 
-import httpx
-
 from src.agents.models import AgentResponse, RetrievedChunk
 from src.config import settings
+from src.retrieval import (
+    FullTextSearchRetriever,
+    HybridRetriever,
+    RetrievalMode,
+    VectorSimilarityRetriever,
+)
 from src.utils.timing import Timer
 
 
-async def _retrieve_chunks(
+def _retrieve_chunks(
     query: str,
     retrieval_params: dict[str, Any],
 ) -> list[RetrievedChunk]:
-    """Retrieve relevant chunks from the retrieval API.
+    """Retrieve relevant chunks using the retrieval system directly.
 
     Args:
         query: Search query
@@ -27,32 +31,50 @@ async def _retrieve_chunks(
     Returns:
         List of RetrievedChunk objects
     """
-    async with httpx.AsyncClient(base_url=str(settings.api_base_url)) as client:
-        payload: dict[str, Any] = {
-            "query": query,
-            "max_returned": retrieval_params.get("max_returned", 10),
-            "mode": retrieval_params.get("mode", "hybrid"),
-            "operator": retrieval_params.get("operator", "or"),
-            "fts_candidates": retrieval_params.get("fts_candidates", 100),
-        }
+    mode = retrieval_params.get("mode", "hybrid")
+    max_returned = retrieval_params.get("max_returned", 10)
+    operator = retrieval_params.get("operator", "or")
+    fts_candidates = retrieval_params.get("fts_candidates", 100)
+    filters = retrieval_params.get("filters")
 
-        if retrieval_params.get("filters"):
-            payload["filters"] = retrieval_params["filters"]
-
-        resp = await client.post("api/retrieval/query", json=payload)
-        resp.raise_for_status()
-        data = resp.json()
+    # Select retriever based on mode
+    if mode == RetrievalMode.FTS or mode == "fts":
+        retriever = FullTextSearchRetriever()
+        result = retriever.retrieve(
+            query=query,
+            n=max_returned,
+            filters=filters,
+            operator=operator,
+        )
+    elif mode == RetrievalMode.VECTOR or mode == "vector":
+        retriever = VectorSimilarityRetriever()
+        result = retriever.retrieve(
+            query=query,
+            n=max_returned,
+            filters=filters,
+        )
+    elif mode == RetrievalMode.HYBRID or mode == "hybrid":
+        retriever = HybridRetriever()
+        result = retriever.retrieve(
+            query=query,
+            n=max_returned,
+            filters=filters,
+            fts_candidates=fts_candidates,
+            operator=operator,
+        )
+    else:
+        raise ValueError(f"Invalid mode: {mode}. Use 'fts', 'vector', or 'hybrid'.")
 
     return [
         RetrievedChunk(
-            chunk_id=chunk["chunk_id"],
-            doc_id=chunk["doc_id"],
-            text=chunk["text"],
-            score=chunk["score"],
-            metadata=chunk["metadata"],
-            ord=chunk["ord"],
+            chunk_id=chunk.chunk_id,
+            doc_id=chunk.doc_id,
+            text=chunk.text,
+            score=chunk.score,
+            metadata=chunk.metadata,
+            ord=chunk.ord,
         )
-        for chunk in data["chunks"]
+        for chunk in result.chunks
     ]
 
 
@@ -110,7 +132,7 @@ class VanillaRAGAgent:
         timer.start()
 
         # Retrieve chunks
-        chunks = await _retrieve_chunks(question, retrieval_params)
+        chunks = _retrieve_chunks(question, retrieval_params)
 
         # Build context from chunks
         context = _build_context(chunks)
