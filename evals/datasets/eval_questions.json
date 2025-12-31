@@ -1,0 +1,172 @@
+{
+  "version": "1.0.0",
+  "description": "Curated evaluation questions from AI podcast transcripts featuring Andrej Karpathy, Ilya Sutskever, and Adam Marblestone. Questions cover AI agents, scaling, brain learning, and intelligence.",
+  "created_at": "2025-12-30",
+  "examples": [
+    {
+      "id": "eval_001",
+      "question": "Why does Andrej Karpathy believe this is the 'decade of agents' rather than the 'year of agents'?",
+      "reference_answer": "Karpathy believes we're in the decade of agents because current agents lack sufficient intelligence, multimodality, computer use capabilities, and continual learning. While agents like Claude and Codex are impressive, there's still significant work needed before they can function like employees or interns.",
+      "expected_sections": ["decade of agents", "bottlenecks", "continual learning", "multimodal"],
+      "difficulty_level": "easy",
+      "source_chunk_ids": [56, 88],
+      "question_type": "factual",
+      "transcript_source": "andrej-karpathy-—-were-summoning-ghosts-not-building-animals.md",
+      "metadata": {"topic": "ai-agents", "speaker": "Andrej Karpathy"}
+    },
+    {
+      "id": "eval_002",
+      "question": "What does Karpathy mean when he says we're 'summoning ghosts, not building animals'?",
+      "reference_answer": "Karpathy distinguishes between AI models and animals because they arise from different optimization processes. Animals evolved with built-in hardware from evolution, while AI models are trained through imitation of human-generated internet data. This creates 'ethereal spirit entities' that mimic humans rather than biological creatures.",
+      "expected_sections": ["ghosts", "spirits", "evolution", "imitation", "internet"],
+      "difficulty_level": "medium",
+      "source_chunk_ids": [58, 59],
+      "question_type": "analytical",
+      "transcript_source": "andrej-karpathy-—-were-summoning-ghosts-not-building-animals.md",
+      "metadata": {"topic": "ai-philosophy", "speaker": "Andrej Karpathy"}
+    },
+    {
+      "id": "eval_003",
+      "question": "What example does Karpathy use to illustrate how animals differ from AI in their learning process?",
+      "reference_answer": "Karpathy uses the zebra example: a zebra is born and within minutes is running around and following its mother. This is not reinforcement learning but something baked in through evolution, which encodes neural net weights in DNA through a process we don't fully understand.",
+      "expected_sections": ["zebra", "born", "running", "mother", "evolution", "baked in"],
+      "difficulty_level": "easy",
+      "source_chunk_ids": [58],
+      "question_type": "factual",
+      "transcript_source": "andrej-karpathy-—-were-summoning-ghosts-not-building-animals.md",
+      "metadata": {"topic": "evolution-vs-learning", "speaker": "Andrej Karpathy"}
+    },
+    {
+      "id": "eval_004",
+      "question": "According to Ilya Sutskever, what is the distinction between the 'age of scaling' and the 'age of research'?",
+      "reference_answer": "The age of scaling (roughly 2020-2025) was characterized by predictable progress from increasing model size, data, and compute. The age of research represents a return to experimentation and algorithmic innovation, because pre-training will eventually run out of data and pure scaling has diminishing returns.",
+      "expected_sections": ["age of scaling", "age of research", "pre-training", "compute", "data"],
+      "difficulty_level": "medium",
+      "source_chunk_ids": [38, 41, 39],
+      "question_type": "factual",
+      "transcript_source": "ilya-sutskever-–-were-moving-from-the-age-of-scaling-to-the-age-of-research.md",
+      "metadata": {"topic": "ai-research-paradigms", "speaker": "Ilya Sutskever"}
+    },
+    {
+      "id": "eval_005",
+      "question": "How does Sutskever explain the disconnect between AI models' eval performance and their real-world economic impact?",
+      "reference_answer": "Sutskever finds it confusing that models perform well on hard evals but have limited economic impact. He suggests this may be because RL training makes models too focused on eval-like tasks, and researchers inadvertently create RL environments inspired by evals, leading to good benchmark performance that doesn't generalize to real-world tasks.",
+      "expected_sections": ["evals", "economic impact", "RL training", "generalization"],
+      "difficulty_level": "hard",
+      "source_chunk_ids": [33],
+      "question_type": "analytical",
+      "transcript_source": "ilya-sutskever-–-were-moving-from-the-age-of-scaling-to-the-age-of-research.md",
+      "metadata": {"topic": "eval-generalization", "speaker": "Ilya Sutskever"}
+    },
+    {
+      "id": "eval_006",
+      "question": "What is Sutskever's competitive programming student analogy, and what does it reveal about AI training?",
+      "reference_answer": "Sutskever compares two students: one who practices 10,000 hours for competitive programming and becomes very skilled at it, versus one who practices 100 hours but has 'it' - innate ability. The first student is like current AI models overtrained on specific tasks. This explains why models excel at benchmarks but may not generalize well to other tasks.",
+      "expected_sections": ["competitive programming", "student", "10,000 hours", "practice", "generalization"],
+      "difficulty_level": "medium",
+      "source_chunk_ids": [34],
+      "question_type": "analytical",
+      "transcript_source": "ilya-sutskever-–-were-moving-from-the-age-of-scaling-to-the-age-of-research.md",
+      "metadata": {"topic": "overtraining", "speaker": "Ilya Sutskever"}
+    },
+    {
+      "id": "eval_007",
+      "question": "What does Sutskever say about the role of value functions in reinforcement learning?",
+      "reference_answer": "Sutskever explains that value functions can tell you if you're doing well or badly during a task, allowing learning before reaching the final solution. He uses chess as an example - losing a piece tells you something went wrong without playing the whole game. He believes value functions will be important for making RL more efficient.",
+      "expected_sections": ["value function", "chess", "reward signal", "short-circuit"],
+      "difficulty_level": "medium",
+      "source_chunk_ids": [36, 37, 49],
+      "question_type": "factual",
+      "transcript_source": "ilya-sutskever-–-were-moving-from-the-age-of-scaling-to-the-age-of-research.md",
+      "metadata": {"topic": "value-functions", "speaker": "Ilya Sutskever"}
+    },
+    {
+      "id": "eval_008",
+      "question": "According to Adam Marblestone, what does evolution build into the brain's loss functions that machine learning typically lacks?",
+      "reference_answer": "Marblestone argues evolution may have built complexity into loss functions - many different loss functions for different brain areas, turned on at different developmental stages. This creates a specific learning curriculum, unlike ML's simple mathematical loss functions like next token prediction.",
+      "expected_sections": ["loss function", "evolution", "curriculum", "development stages"],
+      "difficulty_level": "hard",
+      "source_chunk_ids": [1, 8, 2],
+      "question_type": "analytical",
+      "transcript_source": "adam-marblestone-–-how-does-the-brain-learn-so-much-from-so-little.md",
+      "metadata": {"topic": "brain-learning", "speaker": "Adam Marblestone"}
+    },
+    {
+      "id": "eval_009",
+      "question": "What is Steve Byrnes' Steering Subsystem theory as explained by Marblestone?",
+      "reference_answer": "Steve Byrnes proposes that part of the cortex and amygdala model the 'Steering Subsystem' - the innate responses and reward functions in lower brain areas like the hypothalamus and brainstem. This allows learned features to be wired up to innate rewards, enabling evolution's goals to influence learned behavior.",
+      "expected_sections": ["Steering Subsystem", "Steve Byrnes", "amygdala", "hypothalamus", "innate"],
+      "difficulty_level": "hard",
+      "source_chunk_ids": [3, 4, 5, 28],
+      "question_type": "factual",
+      "transcript_source": "adam-marblestone-–-how-does-the-brain-learn-so-much-from-so-little.md",
+      "metadata": {"topic": "brain-architecture", "speaker": "Adam Marblestone"}
+    },
+    {
+      "id": "eval_010",
+      "question": "How does Marblestone use the spider/flinch example to explain brain learning?",
+      "reference_answer": "When something skitters toward you, the Steering Subsystem triggers a flinch response. The cortex learns to predict this response based on abstract concepts - even the word 'spider' can trigger it. This shows how learned representations get connected to innate responses through predictors that generalize from the world model.",
+      "expected_sections": ["spider", "flinch", "predictor", "generalization", "world model"],
+      "difficulty_level": "medium",
+      "source_chunk_ids": [4],
+      "question_type": "factual",
+      "transcript_source": "adam-marblestone-–-how-does-the-brain-learn-so-much-from-so-little.md",
+      "metadata": {"topic": "brain-mechanisms", "speaker": "Adam Marblestone"}
+    },
+    {
+      "id": "eval_011",
+      "question": "What is Karpathy's view on reinforcement learning for games like Atari, and why does he consider it a misstep?",
+      "reference_answer": "Karpathy was skeptical of games leading to AGI because he wanted agents that could do knowledge work in the real digital world. His early OpenAI project on agents using keyboard and mouse for web pages was too early - without the representation power from language model pre-training, reward was too sparse to learn.",
+      "expected_sections": ["games", "Atari", "OpenAI", "keyboard", "mouse", "web pages"],
+      "difficulty_level": "medium",
+      "source_chunk_ids": [57],
+      "question_type": "opinion",
+      "transcript_source": "andrej-karpathy-—-were-summoning-ghosts-not-building-animals.md",
+      "metadata": {"topic": "rl-history", "speaker": "Andrej Karpathy"}
+    },
+    {
+      "id": "eval_012",
+      "question": "What does Karpathy mean by the 'cognitive core' concept?",
+      "reference_answer": "The cognitive core is an intelligent entity stripped of memorized knowledge but containing the algorithms and strategies of intelligence and problem-solving. Karpathy suggests removing some knowledge from models to keep this core, as too much knowledge may cause agents to stay on the data manifold of internet content.",
+      "expected_sections": ["cognitive core", "knowledge", "algorithms", "intelligence", "problem-solving"],
+      "difficulty_level": "hard",
+      "source_chunk_ids": [76, 60, 75],
+      "question_type": "analytical",
+      "transcript_source": "andrej-karpathy-—-were-summoning-ghosts-not-building-animals.md",
+      "metadata": {"topic": "ai-architecture", "speaker": "Andrej Karpathy"}
+    },
+    {
+      "id": "eval_013",
+      "question": "How does Karpathy describe the relationship between in-context learning and gradient descent?",
+      "reference_answer": "Karpathy argues that in-context learning is where real intelligence is visible - models backing up when wrong, reconsidering approaches. This emerges from gradient descent during pre-training but is not itself gradient descent. It's analogous to how evolution conditions human learning ability, but our lifetime learning happens through different processes.",
+      "expected_sections": ["in-context learning", "gradient descent", "pre-training", "meta-learns"],
+      "difficulty_level": "hard",
+      "source_chunk_ids": [60, 61],
+      "question_type": "analytical",
+      "transcript_source": "andrej-karpathy-—-were-summoning-ghosts-not-building-animals.md",
+      "metadata": {"topic": "learning-mechanisms", "speaker": "Andrej Karpathy"}
+    },
+    {
+      "id": "eval_014",
+      "question": "What does Marblestone mean by 'omnidirectional inference' in the context of brain computation?",
+      "reference_answer": "Omnidirectional inference means the ability to predict any subset of variables given any other subset - not just forward prediction like next token. The cortex may natively support clamping some variables and sampling from others, enabling flexible inference in any direction rather than fixed input-output mappings.",
+      "expected_sections": ["omnidirectional", "inference", "prediction", "variables", "cortex"],
+      "difficulty_level": "hard",
+      "source_chunk_ids": [2, 14, 5],
+      "question_type": "factual",
+      "transcript_source": "adam-marblestone-–-how-does-the-brain-learn-so-much-from-so-little.md",
+      "metadata": {"topic": "brain-computation", "speaker": "Adam Marblestone"}
+    },
+    {
+      "id": "eval_015",
+      "question": "What role do emotions play according to Sutskever's discussion of value functions?",
+      "reference_answer": "Sutskever references a case where someone with brain damage lost emotional processing and became unable to make decisions effectively. He suggests emotions modulate human value functions in ways hardcoded by evolution, and this may be important for humans to be effective in the world.",
+      "expected_sections": ["emotions", "value function", "brain damage", "decisions", "evolution"],
+      "difficulty_level": "medium",
+      "source_chunk_ids": [36, 37],
+      "question_type": "opinion",
+      "transcript_source": "ilya-sutskever-–-were-moving-from-the-age-of-scaling-to-the-age-of-research.md",
+      "metadata": {"topic": "emotions-intelligence", "speaker": "Ilya Sutskever"}
+    }
+  ]
+}
