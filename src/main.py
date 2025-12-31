@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.agents.helpers import initialize_tracing, shutdown_tracing
 from src.api.routes import router
 from src.config import settings
 from src.database.connection import close_db_pool, init_db_pool
@@ -15,7 +16,16 @@ async def lifespan(app: FastAPI):
     init_db_pool()
     print("✓ Database connection pool initialized")
 
+    # Initialize LangSmith tracing if configured
+    initialize_tracing()
+    if settings.langsmith_tracing:
+        print(f"✓ LangSmith tracing enabled (project: {settings.langsmith_project})")
+
     yield
+
+    # Shutdown: Flush traces before closing
+    shutdown_tracing()
+    print("✓ LangSmith traces flushed")
 
     # Shutdown: Close DB connection pool
     close_db_pool()

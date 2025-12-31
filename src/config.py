@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     # LangSmith (optional - for agent tracing)
     langsmith_api_key: str | None = None
     langsmith_project: str = "retrieval-evals"
-    langsmith_tracing_enabled: bool = False
+    langsmith_tracing: bool = False  # Maps to LANGSMITH_TRACING env var
 
     @property
     def client(self):

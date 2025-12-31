@@ -30,6 +30,9 @@ class AgentResponse:
 
     This structure matches the future AgentResponse from Issue #12,
     enabling seamless migration when proper agent classes are implemented.
+
+    Multi-query specific fields (sub_queries, chunks_per_subquery, deduplication_stats)
+    are optional and only populated by MultiQueryRAGAgent.
     """
 
     answer: str
@@ -38,6 +41,10 @@ class AgentResponse:
     retrieved_chunks: list[RetrievedChunk]
     model_used: str
     tokens_used: dict[str, int] = field(default_factory=dict)
+    # Multi-query metadata (populated by MultiQueryRAGAgent only)
+    sub_queries: list[str] = field(default_factory=list)
+    chunks_per_subquery: dict[str, int] = field(default_factory=dict)
+    deduplication_stats: dict[str, Any] = field(default_factory=dict)
 
 
 @runtime_checkable

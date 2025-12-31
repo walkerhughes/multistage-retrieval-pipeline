@@ -3,6 +3,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from src.agents.helpers import flush_traces, initialize_tracing, shutdown_tracing
 from src.database.connection import close_db_pool, get_db_connection, init_db_pool
 from src.main import app
 
@@ -11,8 +12,17 @@ from src.main import app
 def db_pool():
     """Initialize database connection pool for the test session."""
     init_db_pool()
+    initialize_tracing()
     yield
+    shutdown_tracing()
     close_db_pool()
+
+
+@pytest.fixture(scope="function", autouse=True)
+def flush_traces_after_test():
+    """Flush LangSmith traces after each test to ensure they're captured."""
+    yield
+    flush_traces()
 
 
 @pytest.fixture(scope="function")
