@@ -1,6 +1,8 @@
+from dotenv import load_dotenv
 from openai import OpenAI
-from langsmith.wrappers import wrap_openai
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+load_dotenv()
 
 
 class Settings(BaseSettings):
@@ -27,19 +29,19 @@ class Settings(BaseSettings):
     # API
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    api_base_url: str | None = None
+    api_base_url: str = "http://localhost:8000"
 
     # OpenAI
     openai_api_key: str | None = None
-    chat_model: str = "gpt-4.1-nano"
+    chat_model: str = "gpt-4o-mini"
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
 
     @property
     def client(self):
-        """Lazy-initialized OpenAI client wrapped with LangSmith tracing."""
+        """Lazy-initialized OpenAI client."""
         if not hasattr(self, "_client"):
-            self._client = wrap_openai(OpenAI(api_key=self.openai_api_key))
+            self._client = OpenAI(api_key=self.openai_api_key)
         return self._client
 
     @property

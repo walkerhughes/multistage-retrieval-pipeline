@@ -32,6 +32,7 @@ services:
       POSTGRES_DB: retrieval_db
       API_HOST: 0.0.0.0
       API_PORT: 8000
+      API_BASE_URL: http://localhost:8000
       OPENAI_API_KEY: ${OPENAI_API_KEY}
     ports:
       - "8000:8000"
