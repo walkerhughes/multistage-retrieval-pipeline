@@ -8,22 +8,43 @@ Usage:
     python scripts/seed_eval_transcripts.py
 """
 
+import sys
+
 from evals.loaders import TranscriptLoader
-from src.database.connection import close_db_pool, init_db_pool
+from src.database.connection import close_db_pool, get_db_connection, init_db_pool
 from src.ingestion.pipeline import IngestionPipeline
 
 
 def seed_transcripts() -> None:
     """Load and ingest all eval transcripts."""
+    print("=" * 60)
+    print("SEEDING EVAL TRANSCRIPTS")
+    print("=" * 60)
+
     # Initialize database
+    print("\nInitializing database connection...")
     init_db_pool()
 
     try:
+        # Verify database connection
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) as count FROM docs")
+                result = cur.fetchone()
+                print(f"Current docs in database: {result['count']}")
+
         # Load transcripts using default path (evals/datasets/transcripts/)
         loader = TranscriptLoader()
+        print(f"\nLoading transcripts from: {loader.transcripts_dir}")
         transcripts = loader.load_all()
 
-        print(f"Found {len(transcripts)} transcripts to ingest")
+        if not transcripts:
+            print("ERROR: No transcripts found!")
+            sys.exit(1)
+
+        print(f"Found {len(transcripts)} transcripts to ingest:")
+        for t in transcripts:
+            print(f"  - {t.filename}")
 
         # Ingest each transcript
         pipeline = IngestionPipeline(generate_embeddings=True)
@@ -38,9 +59,30 @@ def seed_transcripts() -> None:
                     "source": "eval_transcript",
                 },
             )
-            print(f"  -> doc_id={result['doc_id']}, chunks={result['chunk_count']}")
+            print(f"  -> doc_id={result['doc_id']}, chunks={result['chunk_count']}, embeddings={result['embeddings_generated']}")
 
-        print("\nSeeding complete!")
+        # Verify final state
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) as count FROM docs")
+                docs = cur.fetchone()
+                cur.execute("SELECT COUNT(*) as count FROM chunks")
+                chunks = cur.fetchone()
+                cur.execute("SELECT COUNT(*) as count FROM chunk_embeddings")
+                embeddings = cur.fetchone()
+
+        print("\n" + "=" * 60)
+        print("SEEDING COMPLETE")
+        print("=" * 60)
+        print(f"Total docs: {docs['count']}")
+        print(f"Total chunks: {chunks['count']}")
+        print(f"Total embeddings: {embeddings['count']}")
+
+    except Exception as e:
+        print(f"\nERROR during seeding: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
     finally:
         close_db_pool()
