@@ -8,8 +8,6 @@ Usage:
     python scripts/seed_eval_transcripts.py
 """
 
-from pathlib import Path
-
 from evals.loaders import TranscriptLoader
 from src.database.connection import close_db_pool, init_db_pool
 from src.ingestion.pipeline import IngestionPipeline
@@ -21,9 +19,8 @@ def seed_transcripts() -> None:
     init_db_pool()
 
     try:
-        # Load transcripts
-        transcripts_dir = Path(__file__).parent.parent / "evals" / "datasets" / "transcripts"
-        loader = TranscriptLoader(transcripts_dir)
+        # Load transcripts using default path (evals/datasets/transcripts/)
+        loader = TranscriptLoader()
         transcripts = loader.load_all()
 
         print(f"Found {len(transcripts)} transcripts to ingest")
