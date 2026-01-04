@@ -26,12 +26,19 @@ def seed_transcripts() -> None:
     init_db_pool()
 
     try:
-        # Verify database connection
+        # Clear existing data to ensure consistent chunk IDs
+        print("\nClearing existing data...")
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) as count FROM docs")
-                result = cur.fetchone()
-                print(f"Current docs in database: {result['count']}")
+                # Delete in order to respect foreign keys
+                cur.execute("DELETE FROM chunk_embeddings")
+                cur.execute("DELETE FROM chunks")
+                cur.execute("DELETE FROM docs")
+                # Reset sequences so IDs start at 1
+                cur.execute("ALTER SEQUENCE docs_id_seq RESTART WITH 1")
+                cur.execute("ALTER SEQUENCE chunks_id_seq RESTART WITH 1")
+                conn.commit()
+        print("Database cleared, sequences reset to 1")
 
         # Load transcripts using default path (evals/datasets/transcripts/)
         loader = TranscriptLoader()
