@@ -29,6 +29,8 @@ dependencies = [
     # Observability
     "langchain-openai>=1.1.6",
     "langsmith[openai-agents]>=0.5.1",
+    # CLI utilities
+    "tqdm>=4.66.0",
 ]
 
 [tool.pyrefly]

@@ -75,6 +75,28 @@ jobs:
         run: |
           .venv/bin/pytest tests/integration -v --tb=short
 
+      - name: Seed eval transcripts
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: ${{ vars.POSTGRES_PORT }}
+          POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          .venv/bin/python scripts/seed_eval_transcripts.py
+
+      - name: Run retrieval evals
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: ${{ vars.POSTGRES_PORT }}
+          POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          .venv/bin/python -m evals.retrieval --agent vanilla --num-samples 3 --k 5 10
+
       - name: Generate test report
         if: always()
         env:
