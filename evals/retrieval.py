@@ -442,6 +442,17 @@ def main() -> None:
     init_db_pool()
     initialize_tracing()
 
+    # Verify database has data
+    from src.database.connection import get_db_connection
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) as count FROM chunks")
+            result = cur.fetchone()
+            chunk_count = result["count"] if result else 0  # type: ignore[index]
+            logger.info(f"Database contains {chunk_count} chunks")
+            if chunk_count == 0:
+                logger.warning("WARNING: No chunks in database! Metrics will be 0.")
+
     try:
         # Create agent
         agent_type = AgentType.VANILLA if args.agent == "vanilla" else AgentType.MULTI_QUERY
