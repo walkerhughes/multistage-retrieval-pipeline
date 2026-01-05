@@ -5,7 +5,7 @@ const props = defineProps<{
   invocation: RetrievalUIToolInvocation
 }>()
 
-const showSources = ref(false)
+const showSources = ref(true)
 const expandedChunks = ref<Set<number>>(new Set())
 
 function toggleChunk(index: number) {
@@ -34,14 +34,14 @@ const color = computed(() => {
 
 const icon = computed(() => {
   return ({
-    'input-available': 'i-lucide-search',
     'output-error': 'i-lucide-triangle-alert'
   })[props.invocation.state as string] || 'i-lucide-loader-circle'
 })
 
 const message = computed(() => {
   return ({
-    'input-available': 'Searching transcripts...',
+    'input-available': 'Generating sub-queries...',
+    'input-streaming': 'Decomposing question into sub-queries...',
     'output-error': props.invocation.state === 'output-available' && props.invocation.output?.error
       ? props.invocation.output.error
       : 'Search failed, please try again'
@@ -91,12 +91,15 @@ const hasError = computed(() => {
       <div class="bg-default px-5 py-4">
         <!-- Sub-queries -->
         <div v-if="invocation.output.sub_queries?.length > 0" class="mb-4">
-          <div class="text-xs font-medium text-muted mb-2">Sub-queries generated:</div>
+          <div class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1">
+            <UIcon name="i-lucide-git-branch" class="size-3" />
+            Decomposed into {{ invocation.output.sub_queries.length }} sub-queries:
+          </div>
           <div class="flex flex-wrap gap-2">
             <span
               v-for="(subQuery, index) in invocation.output.sub_queries"
               :key="index"
-              class="text-xs bg-muted px-2 py-1 rounded"
+              class="text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-3 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-800"
             >
               {{ subQuery }}
             </span>
@@ -153,7 +156,7 @@ const hasError = computed(() => {
         <UIcon
           :name="icon"
           class="size-8 mx-auto mb-2"
-          :class="[invocation.state === 'input-streaming' && 'animate-spin']"
+          :class="[invocation.state !== 'output-available' && invocation.state !== 'output-error' && 'animate-spin']"
         />
         <div class="text-sm">
           {{ message }}

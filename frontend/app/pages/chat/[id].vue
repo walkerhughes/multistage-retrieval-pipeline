@@ -154,7 +154,7 @@ onMounted(() => {
           :error="chat.error"
           :disabled="isUploading"
           variant="subtle"
-          class="sticky bottom-0 [view-transition-name:chat-prompt] rounded-b-none z-10"
+          class="sticky bottom-4 [view-transition-name:chat-prompt] z-10"
           :ui="{ base: 'px-1.5' }"
           @submit="handleSubmit"
         >
