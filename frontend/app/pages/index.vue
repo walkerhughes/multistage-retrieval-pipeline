@@ -48,32 +48,28 @@ async function onSubmit() {
 
 const quickChats = [
   {
-    label: 'Why use Nuxt UI?',
-    icon: 'i-logos-nuxt-icon'
+    label: "Why does Karpathy believe this is the 'decade of agents' rather than the 'year of agents'?",
+    icon: 'i-lucide-bot'
   },
   {
-    label: 'Help me create a Vue composable',
-    icon: 'i-logos-vue'
+    label: "What does Karpathy mean by 'summoning ghosts, not building animals'?",
+    icon: 'i-lucide-ghost'
   },
   {
-    label: 'Tell me more about UnJS',
-    icon: 'i-logos-unjs'
+    label: "What is the distinction between the 'age of scaling' and the 'age of research'?",
+    icon: 'i-lucide-trending-up'
   },
   {
-    label: 'Why should I consider VueUse?',
-    icon: 'i-logos-vueuse'
+    label: 'What does evolution build into brain loss functions that ML lacks?',
+    icon: 'i-lucide-brain'
   },
   {
-    label: 'Tailwind CSS best practices',
-    icon: 'i-logos-tailwindcss-icon'
+    label: "What is Sutskever's competitive programming student analogy?",
+    icon: 'i-lucide-code'
   },
   {
-    label: 'What is the weather in Bordeaux?',
-    icon: 'i-lucide-sun'
-  },
-  {
-    label: 'Show me a chart of sales data',
-    icon: 'i-lucide-line-chart'
+    label: 'What role do emotions play in value functions?',
+    icon: 'i-lucide-heart'
   }
 ]
 </script>
