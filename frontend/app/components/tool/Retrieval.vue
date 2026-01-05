@@ -28,8 +28,8 @@ function formatScore(score: number): string {
 const color = computed(() => {
   return ({
     'output-available': 'bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 dark:from-emerald-600 dark:via-teal-600 dark:to-cyan-700 text-white',
-    'output-error': 'bg-muted text-error'
-  })[props.invocation.state as string] || 'bg-muted text-white'
+    'output-error': 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+  })[props.invocation.state as string] || 'bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 dark:from-emerald-600 dark:via-teal-600 dark:to-cyan-700 text-white'
 })
 
 const icon = computed(() => {
@@ -86,8 +86,8 @@ const hasError = computed(() => {
       </div>
     </div>
 
-    <!-- Answer and Sub-queries -->
-    <template v-if="hasAnswer">
+    <!-- Sub-queries and Sources -->
+    <template v-if="hasResults">
       <div class="bg-default px-5 py-4">
         <!-- Sub-queries -->
         <div v-if="invocation.output.sub_queries?.length > 0" class="mb-4">
@@ -103,15 +103,9 @@ const hasError = computed(() => {
           </div>
         </div>
 
-        <!-- Answer -->
-        <div class="prose prose-sm dark:prose-invert max-w-none">
-          <p class="whitespace-pre-wrap">{{ invocation.output.answer }}</p>
-        </div>
-
         <!-- Toggle sources -->
         <button
-          v-if="hasResults"
-          class="mt-4 text-sm text-primary flex items-center gap-1 hover:underline"
+          class="text-sm text-primary flex items-center gap-1 hover:underline"
           @click="showSources = !showSources"
         >
           <UIcon :name="showSources ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="size-4" />
@@ -120,7 +114,7 @@ const hasError = computed(() => {
       </div>
 
       <!-- Source chunks (collapsible) -->
-      <div v-if="showSources && hasResults" class="bg-muted/30 divide-y divide-default max-h-64 overflow-y-auto">
+      <div v-if="showSources" class="bg-muted/30 divide-y divide-default max-h-64 overflow-y-auto">
         <div
           v-for="(chunk, index) in (invocation.output.chunks as ChunkResult[])"
           :key="chunk.chunk_id"
@@ -168,7 +162,7 @@ const hasError = computed(() => {
     </div>
 
     <!-- Error or no results -->
-    <div v-else-if="hasError || !hasAnswer" class="flex items-center justify-center h-32 bg-muted">
+    <div v-else-if="hasError || !hasResults" class="flex items-center justify-center h-32 bg-muted">
       <div class="text-center">
         <UIcon
           :name="hasError ? 'i-lucide-triangle-alert' : 'i-lucide-search-x'"
