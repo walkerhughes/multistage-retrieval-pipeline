@@ -98,7 +98,16 @@ function copy(e: MouseEvent, message: UIMessage) {
 
 onMounted(() => {
   if (data.value?.messages.length === 1) {
-    chat.regenerate()
+    // Resend the first user message to trigger API response
+    // regenerate() only works for assistant messages, so we need to
+    // "replace" the user message with itself to trigger the API call
+    const firstMsg = chat.messages[0]
+    if (firstMsg?.role === 'user') {
+      const text = getTextFromMessage(firstMsg)
+      if (text) {
+        chat.sendMessage({ text, messageId: firstMsg.id })
+      }
+    }
   }
 })
 </script>
