@@ -256,3 +256,192 @@ class IngestionPipeline:
                 conn.commit()
 
         print(f"✓ Generated and inserted {len(embeddings)} embeddings")
+
+    def ingest_with_turns(
+        self,
+        turns: list[dict],
+        title: str,
+        url: str,
+        published_at: datetime | None = None,
+        metadata: dict | None = None,
+        doc_type: str = "transcript",
+    ) -> dict:
+        """
+        Ingest transcript with speaker turn structure.
+
+        This method preserves speaker attribution by:
+        1. Inserting full speaker turns into the turns table
+        2. Chunking each turn individually (one turn = one or more chunks)
+        3. Linking chunks back to their source turn via turn_id
+
+        Args:
+            turns: List of turn dicts with keys:
+                - speaker: str
+                - start_time_seconds: int | None
+                - text: str
+                - section_title: str | None
+                - ord: int
+            title: Document title
+            url: Source URL
+            published_at: Optional publish datetime
+            metadata: Optional metadata dict
+            doc_type: Type of document ('transcript' or 'blog')
+
+        Returns:
+            Dict with doc_id, turn_count, chunk_count, and timing info
+        """
+        start_time = datetime.now()
+
+        # Step 1: Build raw_text from turns
+        raw_text = "\n\n".join(t["text"] for t in turns)
+
+        # Step 2: Insert document
+        doc_id = self._insert_podcast_document(
+            url=url,
+            title=title,
+            raw_text=raw_text,
+            published_at=published_at,
+            metadata=metadata,
+            doc_type=doc_type,
+        )
+        if doc_id is None:
+            raise ValueError("Failed to insert document into database")
+
+        # Step 3: Insert turns
+        turn_ids = self._insert_turns(doc_id, turns)
+
+        # Step 4: Chunk each turn and insert with turn_id
+        all_chunk_ids = []
+        all_chunks = []
+        global_ord = 0
+
+        for turn_data, turn_id in zip(turns, turn_ids):
+            # Chunk the turn text
+            turn_chunks = self.chunker.chunk(turn_data["text"])
+
+            # Insert chunks with turn_id
+            for chunk in turn_chunks:
+                chunk_id = self._insert_chunk_with_turn(
+                    doc_id=doc_id,
+                    turn_id=turn_id,
+                    ord=global_ord,
+                    text=chunk.text,
+                    token_count=chunk.token_count,
+                )
+                if chunk_id:
+                    all_chunk_ids.append(chunk_id)
+                    all_chunks.append(chunk)
+                global_ord += 1
+
+        # Step 5: Generate and insert embeddings (if enabled)
+        embeddings_generated = False
+        if self.generate_embeddings and self.embedding_service and all_chunks:
+            print("\nGenerating embeddings...")
+            self._generate_and_insert_embeddings(all_chunk_ids, all_chunks)
+            embeddings_generated = True
+
+        end_time = datetime.now()
+        elapsed_ms = (end_time - start_time).total_seconds() * 1000
+
+        return {
+            "doc_id": doc_id,
+            "url": url,
+            "title": title,
+            "turn_count": len(turns),
+            "chunk_count": len(all_chunks),
+            "total_tokens": sum(c.token_count for c in all_chunks),
+            "ingestion_time_ms": round(elapsed_ms, 2),
+            "embeddings_generated": embeddings_generated,
+        }
+
+    def _insert_podcast_document(
+        self,
+        url: str,
+        title: str,
+        raw_text: str,
+        published_at: datetime | None = None,
+        metadata: dict | None = None,
+        doc_type: str = "transcript",
+    ) -> int | None:
+        """Insert podcast document into docs table."""
+        query = """
+            INSERT INTO docs (source, url, title, doc_type, published_at, raw_text, metadata)
+            VALUES (%(source)s, %(url)s, %(title)s, %(doc_type)s, %(published_at)s, %(raw_text)s, %(metadata)s)
+            RETURNING id
+        """
+
+        params = {
+            "source": "dwarkesh",
+            "url": url,
+            "title": title,
+            "doc_type": doc_type,
+            "published_at": published_at or datetime.now(),
+            "raw_text": raw_text,
+            "metadata": json.dumps(metadata or {}),
+        }
+
+        return execute_insert(query, params)
+
+    def _insert_turns(self, doc_id: int, turns: list[dict]) -> list[int]:
+        """Batch insert turns into turns table and return turn IDs."""
+        if not turns:
+            return []
+
+        query = """
+            INSERT INTO turns (doc_id, ord, speaker, start_time_seconds, text, section_title, token_count, metadata)
+            VALUES (%(doc_id)s, %(ord)s, %(speaker)s, %(start_time_seconds)s, %(text)s, %(section_title)s, %(token_count)s, %(metadata)s)
+            RETURNING id
+        """
+
+        turn_ids = []
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                for i, turn in enumerate(turns):
+                    # Count tokens for the turn
+                    token_count = self.chunker.count_tokens(turn["text"])
+
+                    cur.execute(
+                        query,  # type: ignore[arg-type]
+                        {
+                            "doc_id": doc_id,
+                            "ord": turn.get("ord", i),
+                            "speaker": turn["speaker"],
+                            "start_time_seconds": turn.get("start_time_seconds"),
+                            "text": turn["text"],
+                            "section_title": turn.get("section_title"),
+                            "token_count": token_count,
+                            "metadata": json.dumps(turn.get("metadata", {})),
+                        },
+                    )
+                    result: dict | None = cur.fetchone()  # type: ignore[assignment]
+                    if result:
+                        turn_ids.append(result.get("id"))  # type: ignore[arg-type]
+                conn.commit()
+
+        return turn_ids
+
+    def _insert_chunk_with_turn(
+        self,
+        doc_id: int,
+        turn_id: int,
+        ord: int,
+        text: str,
+        token_count: int,
+    ) -> int | None:
+        """Insert a single chunk with turn_id reference."""
+        query = """
+            INSERT INTO chunks (doc_id, turn_id, ord, text, token_count)
+            VALUES (%(doc_id)s, %(turn_id)s, %(ord)s, %(text)s, %(token_count)s)
+            RETURNING id
+        """
+
+        return execute_insert(
+            query,
+            {
+                "doc_id": doc_id,
+                "turn_id": turn_id,
+                "ord": ord,
+                "text": text,
+                "token_count": token_count,
+            },
+        )
