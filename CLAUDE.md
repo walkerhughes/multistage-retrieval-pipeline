@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A Postgres-first, high-performance retrieval system for YouTube video transcripts. The system emphasizes **fast, index-backed retrieval** (milliseconds) with evaluation-driven quality improvements.
+A Postgres-first, high-performance retrieval system for podcast transcripts. The system emphasizes **fast, index-backed retrieval** (milliseconds) with evaluation-driven quality improvements.
 
 **Core Principle:** Retrieve broadly and cheaply → reason narrowly and expensively
 
@@ -47,21 +47,20 @@ curl http://localhost:8000/api/health
 
 ### System Flow
 ```
-YouTube URL → LangChain Loader → Text Cleaner → Token Chunker → Postgres (FTS + tsvector) → FastAPI
+Text/Transcript → Text Cleaner → Token Chunker → Postgres (FTS + tsvector) → FastAPI
 ```
 
 ### Key Components
 
 **1. Ingestion Pipeline** (`src/ingestion/`)
-- `youtube_loader.py`: Fetches transcripts using LangChain's YouTube loader (text only, no metadata)
 - `text_cleaner.py`: Cleans transcript text (removes newlines and backslashes)
 - `chunker.py`: Token-based chunking (400-800 tokens using tiktoken cl100k_base)
-- `pipeline.py`: Orchestrates fetch → clean → chunk → store workflow
+- `pipeline.py`: Orchestrates clean → chunk → store workflow
 
 **2. Database Layer** (`src/database/`)
 - `connection.py`: psycopg3 connection pool (2-10 connections)
 - `schema.sql`: Tables with generated tsvector columns and GIN indexes
-- Tables: `docs` (video metadata), `chunks` (text with FTS), `chunk_embeddings` (future)
+- Tables: `docs` (document metadata), `chunks` (text with FTS), `chunk_embeddings` (embeddings)
 
 **3. Retrieval System** (`src/retrieval/`)
 - `fts.py`: Full-Text Search using `websearch_to_tsquery` and `ts_rank`
@@ -69,7 +68,7 @@ YouTube URL → LangChain Loader → Text Cleaner → Token Chunker → Postgres
 - Returns EXPLAIN ANALYZE for performance verification
 
 **4. API Layer** (`src/api/`)
-- `routes.py`: Three core endpoints + health check
+- `routes.py`: Core endpoints + health check
 - `schemas.py`: Pydantic models for request/response validation
 - FastAPI with CORS middleware
 
@@ -80,7 +79,7 @@ YouTube URL → LangChain Loader → Text Cleaner → Token Chunker → Postgres
 ### Database Schema
 
 **docs table:**
-- Stores YouTube video metadata (url, title, published_at)
+- Stores document metadata (url, title, published_at)
 - JSONB metadata field for extensibility
 - Indexed on: published_at, doc_type, source, metadata (GIN), url
 
@@ -106,28 +105,8 @@ YouTube URL → LangChain Loader → Text Cleaner → Token Chunker → Postgres
 
 ## API Endpoints
 
-### POST /api/ingest/youtube
-Ingest YouTube transcript with text cleaning and optional metadata. **Note:** YouTube may block automated requests (HTTP 400). Use `seed_test_data.py` for testing.
-
-Request:
-```json
-{
-  "url": "https://www.youtube.com/watch?v=VIDEO_ID",
-  "title": "Optional title override",
-  "metadata": {"category": "tutorial", "topic": "ml"}
-}
-```
-
-**Text Cleaning:** Automatically removes newlines (`\n`) and backslashes (`\`) from transcripts before chunking.
-
-**Optional Fields:**
-- `title`: Override YouTube video title
-- `metadata`: Custom metadata to merge with YouTube metadata
-
-Returns: `doc_id`, `title`, `chunk_count`, `total_tokens`, `ingestion_time_ms`, `embeddings_generated`
-
 ### POST /api/ingest/text
-Ingest raw text directly without fetching from YouTube.
+Ingest raw text directly.
 
 Request:
 ```json
@@ -138,7 +117,13 @@ Request:
 }
 ```
 
-Returns: Same as `/api/ingest/youtube`
+**Text Cleaning:** Automatically removes newlines (`\n`) and backslashes (`\`) from transcripts before chunking.
+
+**Optional Fields:**
+- `title`: Document title
+- `metadata`: Custom metadata as key-value pairs
+
+Returns: `doc_id`, `title`, `chunk_count`, `total_tokens`, `ingestion_time_ms`, `embeddings_generated`
 
 ### POST /api/retrieval/query
 Retrieve chunks using FTS.
@@ -152,7 +137,7 @@ Request:
     "start_date": "2023-01-01",
     "end_date": "2024-01-01",
     "doc_type": "transcript",
-    "source": "youtube"
+    "source": "dwarkesh"
   }
 }
 ```
@@ -192,11 +177,6 @@ Returns: `query_time_ms`, `rows_returned`, `explain` (full EXPLAIN ANALYZE outpu
 - For read-only queries: use `execute_query()`
 - For inserts: use `execute_insert()` or explicit transactions
 
-### YouTube Transcript Limitations
-- YouTube may block transcript requests (anti-bot measures)
-- Not a bug in the system - use `seed_test_data.py` for local testing
-- Production systems should implement retry logic and fallbacks
-
 ## Files of Interest
 
 ### Configuration & Setup
@@ -219,9 +199,8 @@ Returns: `query_time_ms`, `rows_returned`, `explain` (full EXPLAIN ANALYZE outpu
 - Always use parameterized queries (psycopg3 dict params)
 
 ### Error Handling
-- YouTube ingestion failures should return 400 with descriptive messages
+- Ingestion failures should return 400 with descriptive messages
 - Database errors should log and return 500 with sanitized messages
-- Always validate URLs before attempting transcript fetch
 
 ### Performance Monitoring
 - All endpoints track timing with `Timer` utility class

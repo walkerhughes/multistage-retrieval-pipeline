@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 
 from src.agents.models import AgentType
 from src.retrieval.models import RetrievalMode
@@ -11,36 +11,12 @@ from src.retrieval.models import RetrievalMode
 # ============================================
 
 
-class IngestRequest(BaseModel):
-    """Request body for POST /ingest/youtube
-
-    Ingest a YouTube video by URL. The transcript will be automatically
-    fetched, chunked into segments, and stored in the database.
-    """
-
-    url: HttpUrl = Field(
-        ...,
-        description="YouTube video URL (required)",
-        examples=["https://www.youtube.com/watch?v=dQw4w9WgXcQ"]
-    )
-    title: Optional[str] = Field(
-        None,
-        description="Optional title override (uses YouTube video title if not provided)",
-        examples=["Introduction to Machine Learning"]
-    )
-    metadata: Optional[dict] = Field(
-        default_factory=dict,
-        description="Optional custom metadata as key-value pairs (e.g., author, category)",
-        examples=[{"category": "tutorial", "topic": "ml"}]
-    )
-
-
 class TextIngestRequest(BaseModel):
     """Request body for POST /ingest/text
 
-    Ingest raw text directly without fetching from YouTube. The text will be
-    chunked into segments and stored in the database. Optionally include a
-    title and metadata for better document organization and filtering.
+    Ingest raw text directly. The text will be chunked into segments and
+    stored in the database. Optionally include a title and metadata for
+    better document organization and filtering.
     """
 
     text: str = Field(
@@ -62,7 +38,7 @@ class TextIngestRequest(BaseModel):
 
 
 class IngestResponse(BaseModel):
-    """Response for POST /ingest and POST /ingest/text
+    """Response for POST /ingest/text
 
     Returns metadata about the ingested document including processing statistics.
     """
@@ -77,7 +53,7 @@ class IngestResponse(BaseModel):
     )
     url: str = Field(
         ...,
-        description="URL of the ingested document (YouTube URL or internal reference)"
+        description="URL of the ingested document (source URL or internal reference)"
     )
     title: str = Field(
         ...,
