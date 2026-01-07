@@ -18,10 +18,24 @@ CREATE TABLE docs (
     metadata JSONB NOT NULL DEFAULT '{}'::JSONB
 );
 
+-- Speaker turns table (full utterances by a single speaker)
+CREATE TABLE turns (
+    id BIGSERIAL PRIMARY KEY,
+    doc_id BIGINT NOT NULL REFERENCES docs(id) ON DELETE CASCADE,
+    ord INT NOT NULL,
+    speaker TEXT NOT NULL,
+    start_time_seconds INT,
+    text TEXT NOT NULL,
+    section_title TEXT,
+    token_count INT NOT NULL,
+    metadata JSONB NOT NULL DEFAULT '{}'::JSONB
+);
+
 -- Chunks table with generated tsvector column
 CREATE TABLE chunks (
     id BIGSERIAL PRIMARY KEY,
     doc_id BIGINT NOT NULL REFERENCES docs(id) ON DELETE CASCADE,
+    turn_id BIGINT REFERENCES turns(id) ON DELETE SET NULL,
     ord INT NOT NULL,
     text TEXT NOT NULL,
     token_count INT NOT NULL,
@@ -46,6 +60,12 @@ CREATE INDEX chunks_tsv_gin ON chunks USING GIN(tsv);
 -- Chunk ordering and joins
 CREATE UNIQUE INDEX chunks_doc_ord_uq ON chunks(doc_id, ord);
 CREATE INDEX chunks_doc_id_idx ON chunks(doc_id);
+CREATE INDEX chunks_turn_id_idx ON chunks(turn_id);
+
+-- Turn indexes
+CREATE UNIQUE INDEX turns_doc_ord_uq ON turns(doc_id, ord);
+CREATE INDEX turns_doc_id_idx ON turns(doc_id);
+CREATE INDEX turns_speaker_idx ON turns(speaker);
 
 -- Document filters
 CREATE INDEX docs_published_at_desc ON docs(published_at DESC);
