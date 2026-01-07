@@ -84,3 +84,7 @@ class TokenBasedChunker:
             start_idx = end_idx - self.overlap_tokens
 
         return chunks
+
+    def count_tokens(self, text: str) -> int:
+        """Count the number of tokens in text."""
+        return len(self.encoding.encode(text))
