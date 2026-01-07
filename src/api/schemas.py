@@ -414,3 +414,94 @@ class ChatCompletionResponse(BaseModel):
         description="Statistics about chunk deduplication (total_before_dedup, unique_chunks, "
                     "duplicates_removed, chunks_boosted, etc.). Empty for vanilla agent."
     )
+
+
+# ============================================
+# Chunk Expansion Schemas
+# ============================================
+
+
+class ExpandRequest(BaseModel):
+    """Request body for POST /retrieval/expand
+
+    Expand chunk IDs to retrieve full speaker turn context.
+    """
+
+    chunk_ids: list[int] = Field(
+        ...,
+        description="List of chunk IDs to expand (required, minimum 1 ID)",
+        min_length=1,
+        examples=[[123, 456, 789]]
+    )
+
+
+class TurnData(BaseModel):
+    """Speaker turn data with full context."""
+
+    turn_id: int = Field(..., description="Unique turn identifier")
+    doc_id: int = Field(..., description="Parent document ID")
+    ord: int = Field(..., description="Turn order within document (0-indexed)")
+    speaker: str = Field(..., description="Speaker name")
+    full_text: str = Field(..., description="Complete turn text (not chunked)")
+    start_time_seconds: int | None = Field(None, description="Turn start time in seconds")
+    section_title: str | None = Field(None, description="Section/topic title")
+    token_count: int = Field(..., description="Total tokens in turn")
+
+
+class ExpandResponse(BaseModel):
+    """Response from POST /retrieval/expand endpoint."""
+
+    turns: list[TurnData] = Field(
+        ...,
+        description="List of turn data for requested chunks. "
+                    "Deduplicated - same turn appears once even if multiple chunks reference it."
+    )
+    total_turns: int = Field(..., description="Number of unique turns returned")
+    query_time_ms: float = Field(
+        ...,
+        description="Time taken to expand chunks and retrieve turn data in milliseconds"
+    )
+
+
+class QAPairsRequest(BaseModel):
+    """Request body for POST /retrieval/qa-pairs
+
+    Generate Q&A pairs from turn IDs by pairing with previous turn.
+    """
+
+    turn_ids: list[int] = Field(
+        ...,
+        description="List of turn IDs to generate Q&A pairs from (required, minimum 1 ID)",
+        min_length=1,
+        examples=[[123, 456, 789]]
+    )
+
+
+class QAPair(BaseModel):
+    """Question-Answer pair from consecutive speaker turns."""
+
+    question_turn: TurnData = Field(..., description="Previous turn (question context)")
+    answer_turn: TurnData = Field(..., description="Target turn (answer)")
+
+
+class QAPairsResponse(BaseModel):
+    """Response from POST /retrieval/qa-pairs endpoint."""
+
+    pairs: list[QAPair] = Field(
+        ...,
+        description="List of Q&A pairs. Pairs are only created when a previous turn exists "
+                    "within the same document."
+    )
+    total_pairs: int = Field(..., description="Number of Q&A pairs returned")
+    skipped_turns: int = Field(
+        ...,
+        description="Number of valid turns skipped (first turn in doc, no previous turn available)"
+    )
+    not_found_count: int = Field(
+        ...,
+        description="Number of requested turn IDs not found in the database"
+    )
+    query_time_ms: float = Field(
+        ...,
+        description="Time taken to generate Q&A pairs in milliseconds"
+    )
