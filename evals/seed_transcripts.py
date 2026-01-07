@@ -5,7 +5,7 @@ Loads transcripts from evals/datasets/transcripts/ and ingests them
 into the database using the ingestion pipeline.
 
 Usage:
-    python scripts/seed_eval_transcripts.py
+    python -m evals.seed_transcripts
 """
 
 import sys

@@ -84,7 +84,7 @@ jobs:
           POSTGRES_DB: ${{ vars.POSTGRES_DB }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          .venv/bin/python scripts/seed_eval_transcripts.py
+          .venv/bin/python -m evals.seed_transcripts
 
       - name: Run retrieval evals
         env:
