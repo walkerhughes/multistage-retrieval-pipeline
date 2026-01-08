@@ -72,6 +72,7 @@ async def chat_completion(request: ChatCompletionRequest):
                     score=chunk.score,
                     metadata=chunk.metadata,
                     ord=chunk.ord,
+                    speaker=chunk.speaker,
                 )
                 for chunk in result.retrieved_chunks
             ],

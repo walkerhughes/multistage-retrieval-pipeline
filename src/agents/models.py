@@ -22,6 +22,7 @@ class RetrievedChunk:
     score: float
     metadata: dict[str, Any]
     ord: int
+    speaker: str = "Dwarkesh Patel"  # Defaults to host for non-transcript chunks
 
 
 @dataclass

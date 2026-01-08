@@ -83,6 +83,7 @@ def retrieve_chunks(
             score=chunk.score,
             metadata=chunk.metadata,
             ord=chunk.ord,
+            speaker=chunk.speaker,
         )
         for chunk in result.chunks
     ]
