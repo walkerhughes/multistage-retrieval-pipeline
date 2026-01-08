@@ -109,6 +109,11 @@ class QueryFilters(BaseModel):
         description="Only return chunks from documents published on or before this date",
         examples=["2024-12-31T23:59:59"]
     )
+    speaker: Optional[str] = Field(
+        None,
+        description="Filter by speaker name (case-insensitive partial match, e.g., 'dwarkesh', 'yann')",
+        examples=["Dwarkesh Patel"]
+    )
 
 
 class QueryRequest(BaseModel):
@@ -189,6 +194,10 @@ class ChunkResult(BaseModel):
     ord: int = Field(
         ...,
         description="Position of this chunk within the document (0-indexed)"
+    )
+    speaker: str = Field(
+        ...,
+        description="Speaker name (defaults to 'Dwarkesh Patel' for non-transcript documents)"
     )
 
 
@@ -286,18 +295,18 @@ class ChatCompletionRequest(BaseModel):
         examples=["or"]
     )
     fts_candidates: int = Field(
-        100,
-        description="Number of FTS candidates for hybrid reranking (range: 1-500). Default: 100",
+        25,
+        description="Number of FTS candidates for hybrid reranking (range: 1-500). Default: 25",
         ge=1,
         le=500,
-        examples=[100]
+        examples=[25]
     )
     max_returned: int = Field(
-        10,
-        description="Maximum chunks to retrieve for context (range: 1-100). Default: 10",
+        5,
+        description="Maximum chunks to retrieve for context (range: 1-100). Default: 5",
         ge=1,
         le=100,
-        examples=[10]
+        examples=[5]
     )
     filters: Optional[QueryFilters] = Field(
         None,
@@ -335,6 +344,10 @@ class RetrievedChunkResponse(BaseModel):
     ord: int = Field(
         ...,
         description="Position within the parent document"
+    )
+    speaker: str = Field(
+        ...,
+        description="Speaker name (defaults to 'Dwarkesh Patel' for non-transcript documents)"
     )
 
 

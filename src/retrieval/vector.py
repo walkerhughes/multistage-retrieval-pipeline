@@ -70,6 +70,7 @@ class VectorSimilarityRetriever:
                     ),
                 },
                 ord=row.get("ord"),  # type: ignore[arg-type]
+                speaker=row.get("speaker", "Dwarkesh Patel"),  # type: ignore[arg-type]
             )
             for row in results
         ]
@@ -107,7 +108,7 @@ class VectorSimilarityRetriever:
 
         Note: Cosine similarity ranges from -1 to 1, where 1 is most similar.
         """
-        # Base query with vector similarity
+        # Base query with vector similarity + LEFT JOIN turns for speaker
         # pgvector's <=> operator computes cosine distance (1 - cosine_similarity)
         # We convert to similarity: 1 - distance = similarity
         sql = """
@@ -120,10 +121,12 @@ class VectorSimilarityRetriever:
                 d.url,
                 d.title,
                 d.published_at,
-                d.metadata
+                d.metadata,
+                COALESCE(t.speaker, 'Dwarkesh Patel') AS speaker
             FROM chunk_embeddings ce
             INNER JOIN chunks c ON ce.chunk_id = c.id
             INNER JOIN docs d ON c.doc_id = d.id
+            LEFT JOIN turns t ON c.turn_id = t.id
             WHERE TRUE
         """
 
@@ -153,6 +156,11 @@ class VectorSimilarityRetriever:
             if filters.get("source"):
                 sql += " AND d.source = %(source)s"
                 params["source"] = filters["source"]
+
+            # Speaker filter (case-insensitive partial match)
+            if filters.get("speaker"):
+                sql += " AND COALESCE(t.speaker, 'Dwarkesh Patel') ILIKE %(speaker_pattern)s"
+                params["speaker_pattern"] = f"%{filters['speaker']}%"
 
         # Order by similarity (highest first) and limit
         sql += """

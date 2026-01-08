@@ -22,6 +22,7 @@ class RetrievalResult:
     score: float
     metadata: dict
     ord: int
+    speaker: str = "Dwarkesh Patel"  # Defaults to host for non-transcript chunks
 
 
 @dataclass

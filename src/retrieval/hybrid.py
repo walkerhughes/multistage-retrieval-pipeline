@@ -173,6 +173,7 @@ class HybridRetriever:
                     score=similarity_map[chunk.chunk_id],
                     metadata=chunk.metadata,
                     ord=chunk.ord,
+                    speaker=chunk.speaker,
                 )
                 reranked.append(reranked_chunk)
 

@@ -68,6 +68,7 @@ class FullTextSearchRetriever:
                     ),
                 },
                 ord=row.get("ord"),  # type: ignore[arg-type]
+                speaker=row.get("speaker", "Dwarkesh Patel"),  # type: ignore[arg-type]
             )
             for row in results
         ]
@@ -135,7 +136,7 @@ class FullTextSearchRetriever:
             # AND logic uses websearch_to_tsquery
             tsquery_expr = "websearch_to_tsquery('english', %(query)s)"
 
-        # Base query with FTS
+        # Base query with FTS + LEFT JOIN turns for speaker
         sql = f"""
             SELECT
                 c.id AS chunk_id,
@@ -146,9 +147,11 @@ class FullTextSearchRetriever:
                 d.url,
                 d.title,
                 d.published_at,
-                d.metadata
+                d.metadata,
+                COALESCE(t.speaker, 'Dwarkesh Patel') AS speaker
             FROM chunks c
             INNER JOIN docs d ON c.doc_id = d.id
+            LEFT JOIN turns t ON c.turn_id = t.id
             WHERE c.tsv @@ {tsquery_expr}
         """
 
@@ -172,6 +175,11 @@ class FullTextSearchRetriever:
             if filters.get("source"):
                 sql += " AND d.source = %(source)s"
                 params["source"] = filters["source"]
+
+            # Speaker filter (case-insensitive partial match)
+            if filters.get("speaker"):
+                sql += " AND COALESCE(t.speaker, 'Dwarkesh Patel') ILIKE %(speaker_pattern)s"
+                params["speaker_pattern"] = f"%{filters['speaker']}%"
 
         # Order by rank and limit
         sql += """

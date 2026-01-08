@@ -104,6 +104,7 @@ async def query_chunks(request: QueryRequest):
                     text=c.text,
                     metadata=c.metadata,
                     ord=c.ord,
+                    speaker=c.speaker,
                 )
                 for c in result.chunks
             ],
