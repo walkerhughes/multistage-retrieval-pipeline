@@ -481,3 +481,136 @@ class QAPairsResponse(BaseModel):
         ...,
         description="Time taken to generate Q&A pairs in milliseconds"
     )
+
+
+# ============================================
+# Query-Expanded Schemas
+# ============================================
+
+
+class QueryExpandedRequest(BaseModel):
+    """Request body for POST /retrieval/query-expanded
+
+    Retrieve relevant chunks and expand them to full speaker turns in a single
+    request. Combines retrieval (FTS/vector/hybrid) with automatic turn expansion,
+    deduplication, and optional question pairing.
+    """
+
+    query: str = Field(
+        ...,
+        description="Search query (required)",
+        min_length=1,
+        examples=["what is machine learning?"]
+    )
+    max_chunks: int = Field(
+        100,
+        description="Maximum number of chunks to retrieve before expansion (range: 1-500). "
+                    "Higher values increase recall but may slow down retrieval.",
+        ge=1,
+        le=500,
+        examples=[100]
+    )
+    token_budget: int = Field(
+        8000,
+        description="Maximum total tokens to return in expanded turns (default: 8000). "
+                    "Turns are added in relevance order until budget is exhausted.",
+        ge=100,
+        le=50000,
+        examples=[8000]
+    )
+    include_preceding_question: bool = Field(
+        False,
+        description="If True, prepend the host's preceding question for guest responses. "
+                    "Useful for providing conversational context."
+    )
+    mode: RetrievalMode = Field(
+        RetrievalMode.FTS,
+        description="Retrieval strategy: 'fts' (keyword), 'vector' (semantic), or 'hybrid'",
+        examples=["fts"]
+    )
+    operator: Literal["and", "or"] = Field(
+        "or",
+        description="Query operator for FTS/hybrid modes: 'or' (match any) or 'and' (match all)",
+        examples=["or"]
+    )
+    fts_candidates: int = Field(
+        100,
+        description="Number of FTS candidates for hybrid reranking (range: 1-500)",
+        ge=1,
+        le=500,
+        examples=[100]
+    )
+    filters: Optional[QueryFilters] = Field(
+        None,
+        description="Optional metadata filters (source, doc_type, date range)"
+    )
+
+
+class ExpandedTurnResult(BaseModel):
+    """A speaker turn expanded from retrieved chunks with full context."""
+
+    turn_id: int = Field(..., description="Unique turn identifier")
+    doc_id: int = Field(..., description="Parent document ID")
+    ord: int = Field(..., description="Turn order within document (0-indexed)")
+    speaker: str = Field(..., description="Speaker name")
+    full_text: str = Field(..., description="Complete turn text (not chunked)")
+    start_time_seconds: int | None = Field(None, description="Turn start time in seconds")
+    section_title: str | None = Field(None, description="Section/topic title")
+    token_count: int = Field(..., description="Total tokens in turn")
+    relevance_score: float = Field(
+        ...,
+        description="Highest relevance score from chunks belonging to this turn"
+    )
+    doc_metadata: dict = Field(
+        default_factory=dict,
+        description="Document metadata (title, url, published_at, source)"
+    )
+    preceding_question: Optional[TurnData] = Field(
+        None,
+        description="Previous turn (typically host's question) if include_preceding_question=True"
+    )
+
+
+class DeduplicationStats(BaseModel):
+    """Statistics about chunk-to-turn deduplication."""
+
+    chunks_retrieved: int = Field(
+        ..., description="Total chunks returned from initial retrieval"
+    )
+    unique_turns: int = Field(
+        ..., description="Number of unique speaker turns after deduplication"
+    )
+    chunks_deduplicated: int = Field(
+        ..., description="Number of duplicate chunk→turn mappings removed"
+    )
+
+
+class QueryExpandedResponse(BaseModel):
+    """Response from POST /retrieval/query-expanded endpoint.
+
+    Contains expanded speaker turns with full context, deduplication stats,
+    and timing breakdown.
+    """
+
+    turns: list[ExpandedTurnResult] = Field(
+        ...,
+        description="Expanded speaker turns ranked by relevance. "
+                    "Includes full turn text, speaker info, timestamps, and optional preceding question."
+    )
+    total_turns: int = Field(..., description="Number of turns returned")
+    total_tokens: int = Field(
+        ...,
+        description="Total tokens consumed by returned turns (within token_budget)"
+    )
+    deduplication_stats: DeduplicationStats = Field(
+        ...,
+        description="Statistics about chunk→turn deduplication"
+    )
+    timing_ms: dict = Field(
+        ...,
+        description="Timing breakdown: retrieval_ms, expansion_ms, total_ms"
+    )
+    query_info: dict = Field(
+        ...,
+        description="Query metadata (mode, filters, token_budget, etc.)"
+    )

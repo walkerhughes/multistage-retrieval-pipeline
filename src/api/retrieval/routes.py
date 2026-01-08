@@ -5,11 +5,15 @@ from fastapi import APIRouter, HTTPException, Query
 from src.api.schemas import (
     BenchmarkResponse,
     ChunkResult,
+    DeduplicationStats,
+    ExpandedTurnResult,
     ExpandRequest,
     ExpandResponse,
     QAPair,
     QAPairsRequest,
     QAPairsResponse,
+    QueryExpandedRequest,
+    QueryExpandedResponse,
     QueryRequest,
     QueryResponse,
     TurnData,
@@ -451,4 +455,296 @@ async def generate_qa_pairs(request: QAPairsRequest):
         raise HTTPException(
             status_code=500,
             detail="Q&A pair generation failed. Please verify the turn IDs exist."
+        )
+
+
+@router.post("/query-expanded", response_model=QueryExpandedResponse)
+async def query_expanded(request: QueryExpandedRequest):
+    """Retrieve chunks and expand them to full speaker turns in one request
+
+    This endpoint combines retrieval and expansion for streamlined access to
+    complete speaker context. It performs:
+
+    1. **Retrieval**: Search chunks using FTS, vector, or hybrid mode
+    2. **Deduplication**: Multiple chunks from the same turn are merged,
+       preserving the highest relevance score
+    3. **Expansion**: Fetch full speaker turn text (not chunked)
+    4. **Question Pairing** (optional): Include the preceding turn for context
+    5. **Token Budget**: Return turns until the token budget is exhausted
+
+    **Use Cases:**
+    - Get complete speaker thoughts without mid-sentence cuts
+    - Provide full conversational context to LLMs
+    - Efficient single-request retrieval + expansion
+
+    **Returns:**
+    - Expanded turns with speaker, timestamps, section titles
+    - Document metadata (episode title, URL, published date)
+    - Deduplication statistics
+    - Timing breakdown
+    """
+    try:
+        timer = Timer()
+        timer.start()
+
+        # Convert filters to dict if provided
+        filters_dict = (
+            request.filters.model_dump(exclude_none=True) if request.filters else None
+        )
+
+        # Step 1: Execute retrieval based on mode
+        retrieval_timer = Timer()
+        retrieval_timer.start()
+
+        if request.mode == RetrievalMode.FTS:
+            retriever = FullTextSearchRetriever()
+            result = retriever.retrieve(
+                query=request.query,
+                n=request.max_chunks,
+                filters=filters_dict,
+                operator=request.operator,
+            )
+        elif request.mode == RetrievalMode.VECTOR:
+            retriever = VectorSimilarityRetriever()
+            result = retriever.retrieve(
+                query=request.query,
+                n=request.max_chunks,
+                filters=filters_dict,
+            )
+        elif request.mode == RetrievalMode.HYBRID:
+            retriever = HybridRetriever()
+            result = retriever.retrieve(
+                query=request.query,
+                n=request.max_chunks,
+                filters=filters_dict,
+                fts_candidates=request.fts_candidates,
+                operator=request.operator,
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid mode: {request.mode}. Use 'fts', 'vector', or 'hybrid'.",
+            )
+
+        retrieval_ms = retrieval_timer.stop()
+
+        # No chunks found
+        if not result.chunks:
+            return QueryExpandedResponse(
+                turns=[],
+                total_turns=0,
+                total_tokens=0,
+                deduplication_stats=DeduplicationStats(
+                    chunks_retrieved=0,
+                    unique_turns=0,
+                    chunks_deduplicated=0,
+                ),
+                timing_ms={
+                    "retrieval_ms": round(retrieval_ms, 2),
+                    "expansion_ms": 0,
+                    "total_ms": round(timer.stop(), 2),
+                },
+                query_info={
+                    "query": request.query,
+                    "mode": request.mode.value,
+                    "max_chunks": request.max_chunks,
+                    "token_budget": request.token_budget,
+                    "include_preceding_question": request.include_preceding_question,
+                    "filters_applied": filters_dict or {},
+                },
+            )
+
+        # Step 2: Extract chunk IDs and their scores
+        chunk_ids = [c.chunk_id for c in result.chunks]
+        chunk_scores = {c.chunk_id: c.score for c in result.chunks}
+        chunks_retrieved = len(chunk_ids)
+
+        # Step 3: Expand chunks to turns (with deduplication by highest score)
+        expansion_timer = Timer()
+        expansion_timer.start()
+
+        # Query to get turns from chunk IDs, including document metadata
+        # We need to track which chunks map to which turns for score aggregation
+        expand_query = """
+            SELECT
+                t.id AS turn_id,
+                t.doc_id,
+                t.ord,
+                t.speaker,
+                t.text AS full_text,
+                t.start_time_seconds,
+                t.section_title,
+                t.token_count,
+                c.id AS chunk_id,
+                d.title AS doc_title,
+                d.url AS doc_url,
+                d.published_at AS doc_published_at,
+                d.source AS doc_source
+            FROM turns t
+            INNER JOIN chunks c ON c.turn_id = t.id
+            INNER JOIN docs d ON t.doc_id = d.id
+            WHERE c.id = ANY(%(chunk_ids)s)
+            ORDER BY t.doc_id, t.ord
+        """
+
+        expand_results = execute_query(expand_query, {"chunk_ids": chunk_ids})
+
+        # Step 4: Deduplicate turns, keeping highest chunk score per turn
+        turn_data: dict[int, dict] = {}
+        turn_scores: dict[int, float] = {}
+
+        for row in expand_results:
+            turn_id = row["turn_id"]
+            chunk_id = row["chunk_id"]
+            chunk_score = chunk_scores.get(chunk_id, 0.0)
+
+            # Update score if this chunk has higher score
+            if turn_id not in turn_scores or chunk_score > turn_scores[turn_id]:
+                turn_scores[turn_id] = chunk_score
+                turn_data[turn_id] = {
+                    "turn_id": turn_id,
+                    "doc_id": row["doc_id"],
+                    "ord": row["ord"],
+                    "speaker": row["speaker"],
+                    "full_text": row["full_text"],
+                    "start_time_seconds": row["start_time_seconds"],
+                    "section_title": row["section_title"],
+                    "token_count": row["token_count"],
+                    "doc_metadata": {
+                        "title": row["doc_title"],
+                        "url": row["doc_url"],
+                        "published_at": (
+                            row["doc_published_at"].isoformat()
+                            if row["doc_published_at"]
+                            else None
+                        ),
+                        "source": row["doc_source"],
+                    },
+                }
+
+        unique_turns = len(turn_data)
+        chunks_deduplicated = chunks_retrieved - unique_turns
+
+        # Step 5: Sort turns by relevance score (descending)
+        sorted_turns = sorted(
+            turn_data.values(),
+            key=lambda t: turn_scores[t["turn_id"]],
+            reverse=True,
+        )
+
+        # Step 6: Optionally fetch preceding questions
+        preceding_questions: dict[tuple[int, int], TurnData] = {}
+        if request.include_preceding_question and sorted_turns:
+            # Extract separate lists for doc_ids and ords
+            doc_ids = [t["doc_id"] for t in sorted_turns]
+            ords = [t["ord"] for t in sorted_turns]
+
+            # Query for preceding turns using unnest to match (doc_id, ord - 1)
+            preceding_query = """
+                SELECT
+                    t.id AS turn_id,
+                    t.doc_id,
+                    t.ord,
+                    t.speaker,
+                    t.text AS full_text,
+                    t.start_time_seconds,
+                    t.section_title,
+                    t.token_count,
+                    targets.target_ord
+                FROM turns t
+                INNER JOIN (
+                    SELECT unnest(%(doc_ids)s::int[]) AS doc_id,
+                           unnest(%(ords)s::int[]) AS target_ord
+                ) targets ON t.doc_id = targets.doc_id AND t.ord = targets.target_ord - 1
+            """
+
+            preceding_results = execute_query(
+                preceding_query, {"doc_ids": doc_ids, "ords": ords}
+            )
+
+            # Map preceding turns by (doc_id, target_ord)
+            for row in preceding_results:
+                # The turn at (doc_id, ord) is the preceding turn for (doc_id, target_ord)
+                target_key = (row["doc_id"], row["target_ord"])
+                preceding_questions[target_key] = TurnData(
+                    turn_id=row["turn_id"],
+                    doc_id=row["doc_id"],
+                    ord=row["ord"],
+                    speaker=row["speaker"],
+                    full_text=row["full_text"],
+                    start_time_seconds=row["start_time_seconds"],
+                    section_title=row["section_title"],
+                    token_count=row["token_count"],
+                )
+
+        # Step 7: Apply token budget and build response
+        final_turns: list[ExpandedTurnResult] = []
+        total_tokens = 0
+
+        for turn in sorted_turns:
+            turn_tokens = turn["token_count"]
+
+            # Check if adding this turn exceeds budget
+            # When include_preceding_question is True, account for question tokens too
+            question_key = (turn["doc_id"], turn["ord"])
+            preceding_q = preceding_questions.get(question_key)
+            question_tokens = preceding_q.token_count if preceding_q else 0
+
+            tokens_needed = turn_tokens + question_tokens
+
+            if total_tokens + tokens_needed > request.token_budget:
+                # Budget exhausted, stop adding turns
+                break
+
+            total_tokens += tokens_needed
+
+            final_turns.append(
+                ExpandedTurnResult(
+                    turn_id=turn["turn_id"],
+                    doc_id=turn["doc_id"],
+                    ord=turn["ord"],
+                    speaker=turn["speaker"],
+                    full_text=turn["full_text"],
+                    start_time_seconds=turn["start_time_seconds"],
+                    section_title=turn["section_title"],
+                    token_count=turn["token_count"],
+                    relevance_score=turn_scores[turn["turn_id"]],
+                    doc_metadata=turn["doc_metadata"],
+                    preceding_question=preceding_q,
+                )
+            )
+
+        expansion_ms = expansion_timer.stop()
+        total_ms = timer.stop()
+
+        return QueryExpandedResponse(
+            turns=final_turns,
+            total_turns=len(final_turns),
+            total_tokens=total_tokens,
+            deduplication_stats=DeduplicationStats(
+                chunks_retrieved=chunks_retrieved,
+                unique_turns=unique_turns,
+                chunks_deduplicated=chunks_deduplicated,
+            ),
+            timing_ms={
+                "retrieval_ms": round(retrieval_ms, 2),
+                "expansion_ms": round(expansion_ms, 2),
+                "total_ms": round(total_ms, 2),
+            },
+            query_info={
+                "query": request.query,
+                "mode": request.mode.value,
+                "max_chunks": request.max_chunks,
+                "token_budget": request.token_budget,
+                "include_preceding_question": request.include_preceding_question,
+                "filters_applied": filters_dict or {},
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Query-expanded retrieval failed: {str(e)}"
         )
