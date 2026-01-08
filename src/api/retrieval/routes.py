@@ -635,10 +635,11 @@ async def query_expanded(request: QueryExpandedRequest):
         # Step 6: Optionally fetch preceding questions
         preceding_questions: dict[tuple[int, int], TurnData] = {}
         if request.include_preceding_question and sorted_turns:
-            # Get all turn IDs and their positions to find preceding turns
-            turn_positions = [(t["doc_id"], t["ord"]) for t in sorted_turns]
+            # Extract separate lists for doc_ids and ords
+            doc_ids = [t["doc_id"] for t in sorted_turns]
+            ords = [t["ord"] for t in sorted_turns]
 
-            # Query for preceding turns
+            # Query for preceding turns using unnest to match (doc_id, ord - 1)
             preceding_query = """
                 SELECT
                     t.id AS turn_id,
@@ -649,19 +650,22 @@ async def query_expanded(request: QueryExpandedRequest):
                     t.start_time_seconds,
                     t.section_title,
                     t.token_count,
-                    (t.doc_id, t.ord + 1) AS next_key
+                    targets.target_ord
                 FROM turns t
-                WHERE (t.doc_id, t.ord + 1) = ANY(%(turn_positions)s)
+                INNER JOIN (
+                    SELECT unnest(%(doc_ids)s::int[]) AS doc_id,
+                           unnest(%(ords)s::int[]) AS target_ord
+                ) targets ON t.doc_id = targets.doc_id AND t.ord = targets.target_ord - 1
             """
 
             preceding_results = execute_query(
-                preceding_query, {"turn_positions": turn_positions}
+                preceding_query, {"doc_ids": doc_ids, "ords": ords}
             )
 
             # Map preceding turns by (doc_id, target_ord)
             for row in preceding_results:
-                # The turn at (doc_id, ord) is the preceding turn for (doc_id, ord+1)
-                target_key = (row["doc_id"], row["ord"] + 1)
+                # The turn at (doc_id, ord) is the preceding turn for (doc_id, target_ord)
+                target_key = (row["doc_id"], row["target_ord"])
                 preceding_questions[target_key] = TurnData(
                     turn_id=row["turn_id"],
                     doc_id=row["doc_id"],

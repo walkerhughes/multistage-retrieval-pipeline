@@ -127,13 +127,13 @@ class TestQueryExpandedEndpoint:
 
     def test_query_expanded_token_budget_enforcement(self, test_client, sample_podcast_with_turns):
         """Test that token budget limits the number of returned turns."""
-        # Act - use a small token budget
+        # Act - use a small token budget (must be >= 100 per schema validation)
         response = test_client.post(
             "/api/retrieval/query-expanded",
             json={
                 "query": "AI safety governance",
                 "max_chunks": 50,
-                "token_budget": 50,  # Very small budget
+                "token_budget": 100,  # Minimum allowed budget
             }
         )
 
@@ -142,7 +142,7 @@ class TestQueryExpandedEndpoint:
         data = response.json()
 
         # Total tokens should not exceed budget
-        assert data["total_tokens"] <= 50
+        assert data["total_tokens"] <= 100
 
     def test_query_expanded_with_preceding_question(self, test_client, sample_podcast_with_turns):
         """Test including preceding question in response."""
