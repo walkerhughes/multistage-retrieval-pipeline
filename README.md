@@ -1,12 +1,11 @@
-# Multistage RAG Pipeline for YouTube Video Q&A
+# Multistage RAG Pipeline
 
-A production-grade, Postgres-first retrieval and response generation system for YouTube video transcripts. Built on Postgres Full-Text Search with semantic re-ranking. Features eval-driven quality improvements (to come).
+A production-grade, Postgres-first retrieval and response generation system for podcast transcripts. Built on Postgres Full-Text Search with semantic re-ranking. Features eval-driven quality improvements (to come).
 
 **Key Features:**
 - FastAPI server with ingestion, retrieval, and benchmarking endpoints
 - Postgres Full-Text Search with tsvector + GIN indexes for sub-50ms retrieval
 - Token-based chunking (400-800 tokens using tiktoken cl100k_base)
-- Automatic text cleaning (removes newlines and backslashes)
 - pgvector support for hybrid retrieval with embedding-based re-ranking
 
 ## Quick Start
@@ -43,8 +42,6 @@ Server runs on http://localhost:8000. Access interactive docs at http://localhos
 
 ### 5. Seed Test Data (Recommended)
 
-Since YouTube may block automated transcript requests:
-
 ```bash
 .venv/bin/python seed_test_data.py
 ```
@@ -53,38 +50,9 @@ This populates the database with sample transcript data for testing.
 
 ## API Endpoints
 
-### POST /api/ingest/youtube
-
-Ingest a YouTube video transcript with automatic text cleaning.
-
-**Request:**
-```bash
-curl -X POST "http://localhost:8000/api/ingest/youtube" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://www.youtube.com/watch?v=VIDEO_ID",
-    "title": "Optional title override",
-    "metadata": {"category": "tutorial"}
-  }'
-```
-
-**Response:**
-```json
-{
-  "doc_id": 1,
-  "title": "Video Title",
-  "chunk_count": 42,
-  "total_tokens": 25000,
-  "ingestion_time_ms": 3200,
-  "embeddings_generated": false
-}
-```
-
-**Note:** YouTube may block automated requests (HTTP 400). Use `seed_test_data.py` for reliable testing.
-
 ### POST /api/ingest/text
 
-Ingest raw text directly without fetching from YouTube.
+Ingest raw text directly.
 
 **Request:**
 ```bash
@@ -178,10 +146,8 @@ retrieval-evals/
 │   │   ├── connection.py       # psycopg3 connection pooling
 │   │   └── schema.sql          # Database schema (source of truth)
 │   ├── ingestion/
-│   │   ├── youtube_loader.py   # YouTube transcript fetching (LangChain)
-│   │   ├── text_cleaner.py     # Transcript text cleaning
 │   │   ├── chunker.py          # Token-based chunking (tiktoken)
-│   │   └── pipeline.py         # Orchestrates fetch → clean → chunk → store
+│   │   └── pipeline.py         # Orchestrates chunk → embed → store workflow
 │   ├── retrieval/
 │   │   └── fts.py              # Full-Text Search implementation
 │   ├── api/
@@ -199,7 +165,7 @@ retrieval-evals/
 ### Tables
 
 **docs**
-- Stores YouTube video metadata: `url`, `title`, `published_at`, `raw_text`
+- Stores document metadata: `url`, `title`, `published_at`, `raw_text`
 - `metadata` JSONB field for extensibility
 - Indexed on: `published_at`, `doc_type`, `source`, `metadata` (GIN), `url`
 
@@ -237,11 +203,6 @@ Always verify index usage with the `/api/retrieval/bench` endpoint to detect per
 - **GIN indexes**: Enable bitmap index scans for fast retrieval (typically 5-15ms)
 - Trade-off: Simpler than vector embeddings but sufficient for exact keyword matching
 
-### LangChain YouTube Loader
-- Simple API requiring no authentication
-- Automatic caption/transcript handling
-- Limitation: YouTube may block automated requests; use `seed_test_data.py` for testing
-
 ### psycopg3 with Connection Pooling
 - Modern PostgreSQL driver with built-in connection pooling
 - 2-10 connection pool for balanced performance/resource usage
@@ -251,11 +212,6 @@ Always verify index usage with the `/api/retrieval/bench` endpoint to detect per
 - Uses GPT-4's `cl100k_base` tokenizer for accurate token budgets
 - Chunking: 400-800 tokens with 50-token overlap to preserve context
 - Order preserved via `ord` field in chunks table
-
-### Text Cleaning
-- Removes newlines (`\n`) and backslashes (`\`) from transcripts
-- Improves FTS query matching and readability
-- Applied automatically during ingestion pipeline
 
 ## Development
 

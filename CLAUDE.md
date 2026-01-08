@@ -47,15 +47,14 @@ curl http://localhost:8000/api/health
 
 ### System Flow
 ```
-Text/Transcript → Text Cleaner → Token Chunker → Postgres (FTS + tsvector) → FastAPI
+Text/Transcript → Token Chunker → Postgres (FTS + tsvector) → FastAPI
 ```
 
 ### Key Components
 
 **1. Ingestion Pipeline** (`src/ingestion/`)
-- `text_cleaner.py`: Cleans transcript text (removes newlines and backslashes)
 - `chunker.py`: Token-based chunking (400-800 tokens using tiktoken cl100k_base)
-- `pipeline.py`: Orchestrates clean → chunk → store workflow
+- `pipeline.py`: Orchestrates chunk → embed → store workflow
 
 **2. Database Layer** (`src/database/`)
 - `connection.py`: psycopg3 connection pool (2-10 connections)
@@ -116,8 +115,6 @@ Request:
   "metadata": {"author": "John Doe", "source": "manual"}
 }
 ```
-
-**Text Cleaning:** Automatically removes newlines (`\n`) and backslashes (`\`) from transcripts before chunking.
 
 **Optional Fields:**
 - `title`: Document title
