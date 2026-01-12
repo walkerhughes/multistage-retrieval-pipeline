@@ -30,6 +30,7 @@ from typing import NoReturn
 # Registry of available eval types
 EVAL_TYPES = {
     "retrieval": "Run retrieval quality evaluation against ground truth chunks",
+    "tool-params": "Run agent tool parameter extraction evaluation",
 }
 
 
@@ -45,10 +46,14 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
         epilog="""
 Available eval types:
   retrieval    Run retrieval quality evaluation against ground truth chunks
+  tool-params  Run agent tool parameter extraction evaluation
 
 Examples:
   # Run retrieval evals
   python -m evals.harness --eval-type retrieval --agent vanilla --num-samples 3
+
+  # Run tool parameter evals
+  python -m evals.harness --eval-type tool-params --category speaker_filter
 
   # List available eval types
   python -m evals.harness --list
@@ -115,6 +120,33 @@ def run_retrieval_evals(extra_args: list[str]) -> int:
         sys.argv = original_argv
 
 
+def run_tool_params_evals(extra_args: list[str]) -> int:
+    """Run tool parameter extraction evaluation with given arguments.
+
+    Args:
+        extra_args: Additional CLI arguments to pass to tool-params runner
+
+    Returns:
+        Exit code (0 for success)
+    """
+    # Patch sys.argv for the tool-params runner's argparse
+    import sys
+    original_argv = sys.argv
+    sys.argv = ["evals.tool_params.runner"] + extra_args
+
+    try:
+        from evals.tool_params.runner import main
+        main()
+        return 0
+    except SystemExit as e:
+        return e.code if isinstance(e.code, int) else 1
+    except Exception as e:
+        print(f"Error running tool-params evals: {e}")
+        return 1
+    finally:
+        sys.argv = original_argv
+
+
 def main() -> int:
     """Main harness entry point.
 
@@ -137,6 +169,8 @@ def main() -> int:
 
     if args.eval_type == "retrieval":
         return run_retrieval_evals(extra_args)
+    elif args.eval_type == "tool-params":
+        return run_tool_params_evals(extra_args)
     else:
         print(f"Unknown eval type: {args.eval_type}")
         return 1
