@@ -97,6 +97,17 @@ jobs:
         run: |
           .venv/bin/python -m evals.harness --eval-type retrieval --agent vanilla --num-samples 3 --k 5 10
 
+      - name: Run tool-params evals
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: ${{ vars.POSTGRES_PORT }}
+          POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          .venv/bin/python -m evals.harness --eval-type tool-params --num-samples 5
+
       - name: Generate test report
         if: always()
         env:
