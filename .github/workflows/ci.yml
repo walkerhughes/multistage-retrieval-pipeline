@@ -95,7 +95,7 @@ jobs:
           POSTGRES_DB: ${{ vars.POSTGRES_DB }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          .venv/bin/python -m evals.retrieval --agent vanilla --num-samples 3 --k 5 10
+          .venv/bin/python -m evals.harness --eval-type retrieval --agent vanilla --num-samples 3 --k 5 10
 
       - name: Generate test report
         if: always()
