@@ -6,10 +6,9 @@ per-category breakdowns.
 """
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Optional
 
-if TYPE_CHECKING:
-    from evals.tool_params.runner import ToolParamsEvalResult
+from evals.tasks.tool_params.types import ToolParamsEvalResult
 
 
 @dataclass
@@ -87,7 +86,7 @@ class ToolParamsMetrics:
 
 def _compute_filter_metrics(
     filter_name: str,
-    results: list["ToolParamsEvalResult"],
+    results: list[ToolParamsEvalResult],
 ) -> FilterMetrics:
     """Compute metrics for a single filter type across all results.
 
@@ -154,7 +153,7 @@ def _compute_filter_metrics(
 
 def _compute_category_metrics(
     category: str,
-    results: list["ToolParamsEvalResult"],
+    results: list[ToolParamsEvalResult],
 ) -> CategoryMetrics:
     """Compute metrics for a specific test category.
 
@@ -183,7 +182,7 @@ def _compute_category_metrics(
 
 
 def compute_tool_params_metrics(
-    results: list["ToolParamsEvalResult"],
+    results: list[ToolParamsEvalResult],
     case_categories: Optional[dict[str, str]] = None,
 ) -> ToolParamsMetrics:
     """Compute aggregate metrics from tool parameter evaluation results.
@@ -231,7 +230,7 @@ def compute_tool_params_metrics(
 
     # Compute per-category metrics
     # Group results by category (from case_categories or infer from result patterns)
-    categories: dict[str, list["ToolParamsEvalResult"]] = {}
+    categories: dict[str, list[ToolParamsEvalResult]] = {}
 
     if case_categories:
         for result in results:
@@ -322,7 +321,7 @@ def format_metrics_report(metrics: ToolParamsMetrics) -> str:
     return "\n".join(lines)
 
 
-def format_detailed_results(results: list["ToolParamsEvalResult"]) -> str:
+def format_detailed_results(results: list[ToolParamsEvalResult]) -> str:
     """Format detailed per-case results.
 
     Args:

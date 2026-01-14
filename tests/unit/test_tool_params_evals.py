@@ -6,41 +6,20 @@ filter parameters (speaker, date, etc.) from natural language queries.
 Run with: pytest tests/unit/test_tool_params_evals.py -v --tb=short
 """
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
-
 import pytest
 
-from evals.tool_params.dataset import (
+from evals.tasks.tool_params.dataset import (
     EVAL_CASES,
-    EvalCase,
     ExpectedFilters,
     ToolParamsDataset,
 )
-from evals.tool_params.metrics import (
+from evals.tasks.tool_params.metrics import (
     ToolParamsMetrics,
     compute_tool_params_metrics,
     format_detailed_results,
     format_metrics_report,
 )
-
-
-# Local definition of ToolParamsEvalResult for tests
-# This avoids importing from runner.py which has heavy dependencies
-@dataclass
-class ToolParamsEvalResult:
-    """Result of running a single tool parameter evaluation case."""
-
-    case_id: str
-    query: str
-    expected_filters: ExpectedFilters
-    actual_filters: dict[str, Any]
-    tool_calls: list[Any]
-    filter_matches: dict[str, bool]
-    overall_match: bool
-    answer: str = ""
-    latency_ms: float = 0.0
-    error: Optional[str] = None
+from evals.tasks.tool_params.types import ToolParamsEvalResult
 
 
 class TestToolParamsDataset:

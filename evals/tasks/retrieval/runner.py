@@ -5,13 +5,13 @@ This script runs retrieval evaluation on the curated eval dataset,
 computing retrieval quality metrics against ground truth source_chunk_ids.
 
 Usage:
-    python -m evals.retrieval.runner --agent vanilla --k 5 10 15
-    python -m evals.retrieval.runner --agent multi-query --num-samples 10
-    python -m evals.retrieval.runner --help
+    python -m evals.tasks.retrieval.runner --agent vanilla --k 5 10 15
+    python -m evals.tasks.retrieval.runner --agent multi-query --num-samples 10
+    python -m evals.tasks.retrieval.runner --help
 
 Example:
     # Run multi-query agent with hybrid retrieval, evaluate at k=5,10,15
-    python -m evals.retrieval.runner \
+    python -m evals.tasks.retrieval.runner \
         --agent multi-query \
         --k 5 10 15 \
         --fts-candidates 100 \
@@ -30,7 +30,7 @@ from typing import Any
 
 from tqdm import tqdm
 
-from evals.loaders import load_eval_dataset
+from evals.tasks.retrieval.loaders import load_eval_dataset
 from evals.metrics.retrieval import RetrievalMetrics, compute_retrieval_metrics
 from evals.results.schemas import (
     EvalResult,
@@ -60,13 +60,13 @@ def parse_args() -> argparse.Namespace:
         epilog="""
 Examples:
   # Run with defaults (multi-query, hybrid, k=5,10,15)
-  python -m evals.retrieval.runner
+  python -m evals.tasks.retrieval.runner
 
   # Vanilla agent with 10 samples
-  python -m evals.retrieval.runner --agent vanilla --num-samples 10
+  python -m evals.tasks.retrieval.runner --agent vanilla --num-samples 10
 
   # Custom retrieval settings
-  python -m evals.retrieval.runner --fts-candidates 200 --max-returned 20
+  python -m evals.tasks.retrieval.runner --fts-candidates 200 --max-returned 20
         """,
     )
 

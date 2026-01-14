@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from evals.loaders.transcript_loader import Transcript, TranscriptLoader, load_eval_dataset
+from evals.tasks.retrieval.loaders.transcript_loader import (
+    Transcript,
+    TranscriptLoader,
+    load_eval_dataset,
+)
 from evals.schemas.task import EvalDataset
 
 
