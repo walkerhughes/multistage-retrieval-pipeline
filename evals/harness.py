@@ -105,10 +105,10 @@ def run_retrieval_evals(extra_args: list[str]) -> int:
     # Patch sys.argv for the retrieval runner's argparse
     import sys
     original_argv = sys.argv
-    sys.argv = ["evals.retrieval.runner"] + extra_args
+    sys.argv = ["evals.tasks.retrieval.runner"] + extra_args
 
     try:
-        from evals.retrieval.runner import main
+        from evals.tasks.retrieval.runner import main
         main()
         return 0
     except SystemExit as e:
@@ -132,10 +132,10 @@ def run_tool_params_evals(extra_args: list[str]) -> int:
     # Patch sys.argv for the tool-params runner's argparse
     import sys
     original_argv = sys.argv
-    sys.argv = ["evals.tool_params.runner"] + extra_args
+    sys.argv = ["evals.tasks.tool_params.runner"] + extra_args
 
     try:
-        from evals.tool_params.runner import main
+        from evals.tasks.tool_params.runner import main
         main()
         return 0
     except SystemExit as e:

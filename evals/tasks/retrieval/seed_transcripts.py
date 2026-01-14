@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 """Seed database with eval transcripts for CI testing.
 
-Loads transcripts from evals/datasets/transcripts/ and ingests them
+Loads transcripts from evals/tasks/retrieval/datasets/transcripts/ and ingests them
 into the database using the ingestion pipeline.
 
 Usage:
-    python -m evals.seed_transcripts
+    python -m evals.tasks.retrieval.seed_transcripts
 """
 
 import sys
 
-from evals.loaders import TranscriptLoader
+from evals.tasks.retrieval.loaders import TranscriptLoader
 from src.database.connection import close_db_pool, get_db_connection, init_db_pool
 from src.ingestion.pipeline import IngestionPipeline
 

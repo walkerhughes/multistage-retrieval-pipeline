@@ -5,19 +5,19 @@ This script runs evaluations to test whether an agent correctly extracts
 and applies filter parameters (speaker, date, etc.) from natural language queries.
 
 Usage:
-    python -m evals.tool_params.runner --category speaker_filter
-    python -m evals.tool_params.runner --case-id speaker_001 --verbose
-    python -m evals.tool_params.runner --help
+    python -m evals.tasks.tool_params.runner --category speaker_filter
+    python -m evals.tasks.tool_params.runner --case-id speaker_001 --verbose
+    python -m evals.tasks.tool_params.runner --help
 
 Examples:
     # Run all evals with FTS mode
-    python -m evals.tool_params.runner --mode fts
+    python -m evals.tasks.tool_params.runner --mode fts
 
     # Run speaker filter tests only
-    python -m evals.tool_params.runner --category speaker_filter
+    python -m evals.tasks.tool_params.runner --category speaker_filter
 
     # Run with verbose output
-    python -m evals.tool_params.runner --verbose --num-samples 5
+    python -m evals.tasks.tool_params.runner --verbose --num-samples 5
 """
 
 import argparse
@@ -25,7 +25,6 @@ import asyncio
 import json
 import logging
 import sys
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -34,65 +33,20 @@ from tqdm import tqdm
 
 from agents import Agent, Runner, function_tool  # pyrefly: ignore
 
-from evals.tool_params.dataset import EvalCase, ExpectedFilters, ToolParamsDataset
-from evals.tool_params.metrics import (
+from evals.tasks.tool_params.dataset import EvalCase, ExpectedFilters, ToolParamsDataset
+from evals.tasks.tool_params.metrics import (
     ToolParamsMetrics,
     compute_tool_params_metrics,
     format_detailed_results,
     format_metrics_report,
 )
+from evals.tasks.tool_params.types import ToolCallCapture, ToolParamsEvalResult
 from src.agents.helpers import get_trace_id, initialize_tracing, retrieve_chunks
 from src.config import settings
 from src.utils.timing import Timer
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class ToolCallCapture:
-    """Captured tool call with its parameters.
-
-    Attributes:
-        tool_name: Name of the tool that was called
-        query: The search query passed to the tool
-        filters: Dictionary of filter parameters applied
-        raw_args: Raw arguments as passed to the tool
-    """
-
-    tool_name: str
-    query: str
-    filters: dict[str, Any] = field(default_factory=dict)
-    raw_args: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class ToolParamsEvalResult:
-    """Result of running a single tool parameter evaluation case.
-
-    Attributes:
-        case_id: ID of the eval case
-        query: Original query
-        expected_filters: Expected filter values
-        actual_filters: Filters actually applied by the agent
-        tool_calls: List of all tool calls made
-        filter_matches: Dict mapping filter names to match status
-        overall_match: True if all expected filters were correctly applied
-        answer: The agent's generated answer
-        latency_ms: Time taken for the evaluation
-        error: Error message if evaluation failed
-    """
-
-    case_id: str
-    query: str
-    expected_filters: ExpectedFilters
-    actual_filters: dict[str, Any]
-    tool_calls: list[ToolCallCapture]
-    filter_matches: dict[str, bool]
-    overall_match: bool
-    answer: str = ""
-    latency_ms: float = 0.0
-    error: Optional[str] = None
 
 
 def _normalize_filter_value(value: Any) -> Optional[str]:
@@ -188,13 +142,13 @@ def parse_args() -> argparse.Namespace:
         epilog="""
 Examples:
   # Run all evals with defaults
-  python -m evals.tool_params.runner
+  python -m evals.tasks.tool_params.runner
 
   # Run specific category
-  python -m evals.tool_params.runner --category speaker_filter
+  python -m evals.tasks.tool_params.runner --category speaker_filter
 
   # Run specific case with verbose output
-  python -m evals.tool_params.runner --case-id speaker_001 --verbose
+  python -m evals.tasks.tool_params.runner --case-id speaker_001 --verbose
         """,
     )
     parser.add_argument(
@@ -469,7 +423,7 @@ CRITICAL INSTRUCTIONS FOR TOOL USE:
         return results
 
 
-def serialize_result(result: Any) -> dict:
+def serialize_result(result: Any) -> Any:
     """Serialize an EvalResult to a JSON-compatible dict."""
     if hasattr(result, "__dataclass_fields__"):
         d = {}

@@ -54,7 +54,7 @@ class TranscriptLoader:
     @staticmethod
     def _get_project_root() -> Path:
         """Get the project root directory."""
-        # Navigate up from evals/loaders/transcript_loader.py
+        # Navigate up from evals/tasks/retrieval/loaders/transcript_loader.py
         return Path(__file__).parent.parent / "datasets"
 
     def load(self, filename: str) -> Transcript:
